@@ -3,8 +3,10 @@ import abc
 import copy
 
 import theano.tensor as T
+import layers
 
 from utils.model.model_utils import raiseNotDefined
+
 
 class Model:
     __metaclass__ = abc.ABCMeta
@@ -59,3 +61,51 @@ class Model:
         # found to display unstable beahavior during the save.
         # re-conversion to a theano variable is handled in obtain_network().
         hickle.dump(self.best_param_values, filename, mode='w', compression='gzip')
+        
+    def network_fprop(self, network_layers, x, y=None, isTest = False, noiseless=False):
+        layer_outputs = {}
+        if isTest:
+            mode = 'test'
+        else:
+            mode = 'train'
+            
+        for layer_idx in xrange(len(network_layers)):
+            crt_layer = network_layers[layer_idx]
+            
+            if isinstance(crt_layer, layers.DataLayer):
+                if crt_layer.inputType == 'data':
+                    layer_outputs[crt_layer.layerName] = crt_layer.fprop(x)
+                elif crt_layer.inputType == 'label':
+                    layer_outputs[crt_layer.layerName] = crt_layer.fprop(y)
+                else:
+                    raise('unkown layer input type')
+            else:
+                
+                if noiseless and isinstance(crt_layer, layers.NoiseLayer):
+                    prev_noise_level = crt_layer.noiseLevel
+                    crt_layer.noiseLevel = 0
+                    
+                prev_layers = crt_layer.getPreviousLayer()
+            
+                # only concatenate layers takes multiple inputs
+                if len(prev_layers) > 1:
+                    input_for_crt_layer = []
+                    for l in prev_layers:
+                        input_for_crt_layer.append(layer_outputs[l.layerName])
+                else:
+                    input_for_crt_layer = layer_outputs[prev_layers[0].layerName]
+                
+                if isinstance(crt_layer, layers.BatchNormLayer):
+                    output_for_crt_layer = crt_layer.fprop(input_for_crt_layer, mode)
+                elif isinstance(crt_layer, layers.DropoutLayer) \
+                   or isinstance(crt_layer, layers.BatchStandardizeLayer):
+                    output_for_crt_layer = crt_layer.fprop(input_for_crt_layer, isTest)
+                else:
+                    output_for_crt_layer = crt_layer.fprop(input_for_crt_layer)
+                
+                layer_outputs[crt_layer.layerName] = output_for_crt_layer
+                
+                if noiseless and isinstance(crt_layer, layers.NoiseLayer):
+                    crt_layer.noiseLevel = prev_noise_level
+                    
+        return layer_outputs

@@ -2,7 +2,6 @@ import theano
 import numpy
 
 import theano.tensor as T
-import layers
 
 from utils.model.model_utils import obtain_network, validate_network
 from unsupervised_model import UnsupervisedModel
@@ -16,7 +15,7 @@ class AutoEncoder(UnsupervisedModel):
     """ takes network structure and model parameters and assigns class attributes """
     def initilize(self, network_structure, batch_size,
                   seed, network_cost, init_params = {}, *args, **kwargs):
-        self.network_structure = network_structure
+        self.ae_structure = network_structure
         self.batch_size = batch_size
         self.seed = seed
         self.network_cost = network_cost
@@ -26,13 +25,13 @@ class AutoEncoder(UnsupervisedModel):
     """ network structure definition -> network stucture + post training functions """
     def compile_model(self, *args, **kwargs):
         print '... building the model'
-        self.name_index_dic = validate_network(self.network_structure)
+        self.ae_name_index_dic = validate_network(self.ae_structure)
         
         self.x = T.matrix('x')
         
         self.layers = obtain_network(self.batch_size,
-                                     self.network_structure, 
-                                     self.name_index_dic, self.init_params)
+                                     self.ae_structure, 
+                                     self.ae_name_index_dic, self.init_params)
 
         self.params = [l.params for l in self.layers]
         
@@ -41,8 +40,8 @@ class AutoEncoder(UnsupervisedModel):
         print '... compiling training functions'
         
         # propagte for training with batch normalization with upated std and mean for each batch
-        self.layer_outputs = self.network_fprop(isTest=False, noiseless=False)
-        cost, show_cost = self.get_cost()
+        layer_outputs = self.network_fprop(self.layers, self.x, isTest=False, noiseless=False)
+        cost, show_cost = self.get_cost(layer_outputs, self.layers)
         self.opt = opt
         updates = self.opt.get_updates(cost, self.params)
         
@@ -65,9 +64,9 @@ class AutoEncoder(UnsupervisedModel):
         
         
         if self.nvalid_batches>0:
-            self.layer_outputs = self.network_fprop(isTest=True, noiseLess=noiseless_validation)
-            self.final_output = self.layer_outputs[self.network_structure[-1]['name']]
-            _, show_cost = self.get_cost()
+            layer_outputs = self.network_fprop(self.layers, self.x, isTest=True, noiseLess=noiseless_validation)
+            final_output = layer_outputs[self.ae_structure[-1]['name']]
+            _, show_cost = self.get_cost(layer_outputs, self.layers)
     
             if self.uint8_data:
                 given_valid_x = T.cast(self.shared_valid[start_index:end_index], dtype='float32')
@@ -85,64 +84,16 @@ class AutoEncoder(UnsupervisedModel):
                                                           }
                                               )
     
-    def network_fprop(self, isTest = False, noiseless=False):
-        layer_outputs = {}
-        if isTest:
-            mode = 'test'
-        else:
-            mode = 'train'
-            
-        for layer_idx in xrange(len(self.layers)):
-            crt_layer = self.layers[layer_idx]
-            
-            if isinstance(crt_layer, layers.DataLayer):
-                if crt_layer.inputType == 'data':
-                    layer_outputs[crt_layer.layerName] = crt_layer.fprop(self.x)
-                elif crt_layer.inputType == 'label':
-                    layer_outputs[crt_layer.layerName] = crt_layer.fprop(self.y)
-                else:
-                    raise('unkown layer input type')
-            else:
-                
-                if noiseless and isinstance(crt_layer, layers.NoiseLayer):
-                    prev_noise_level = crt_layer.noiseLevel
-                    crt_layer.noiseLevel = 0
-                    
-                prev_layers = crt_layer.getPreviousLayer()
-            
-                # only concatenate layers takes multiple inputs
-                if len(prev_layers) > 1:
-                    input_for_crt_layer = []
-                    for l in prev_layers:
-                        input_for_crt_layer.append(layer_outputs[l.layerName])
-                else:
-                    input_for_crt_layer = layer_outputs[prev_layers[0].layerName]
-                
-                if isinstance(crt_layer, layers.BatchNormLayer):
-                    output_for_crt_layer = crt_layer.fprop(input_for_crt_layer, mode)
-                elif isinstance(crt_layer, layers.DropoutLayer) \
-                   or isinstance(crt_layer, layers.BatchStandardizeLayer):
-                    output_for_crt_layer = crt_layer.fprop(input_for_crt_layer, isTest)
-                else:
-                    output_for_crt_layer = crt_layer.fprop(input_for_crt_layer)
-                
-                layer_outputs[crt_layer.layerName] = output_for_crt_layer
-                
-                if noiseless and isinstance(crt_layer, layers.NoiseLayer):
-                    crt_layer.noiseLevel = prev_noise_level
-                    
-        return layer_outputs
-    
-    def get_cost(self):
+    def get_cost(self, layer_outputs, layers):
         # get network cost
         cost = 0.
         for layer_name in self.network_cost.keys():
             target_name, cost_func = self.network_cost[layer_name]
-            cost += cost_func.getCost(self.layer_outputs[target_name], 
-                                      self.layer_outputs[layer_name])
+            cost += cost_func.getCost(layer_outputs[target_name], 
+                                      layer_outputs[layer_name])
         # get parameter/regularizer cost
         reg = 0.
-        for layer in self.layers:
+        for layer in layers:
             reg += layer.getParamRegularization()
         
         return cost + reg, cost
@@ -150,10 +101,10 @@ class AutoEncoder(UnsupervisedModel):
         
     def reconstruct(self, data, noiseLess=False):
         
-        layer_outputs = self.network_fprop(isTest=True, noiseLess=noiseLess)
+        layer_outputs = self.network_fprop(self.layers, self.x, isTest=True, noiseless=noiseLess)
          
         # the reconstruction is always the last layer of the network
-        final_output = layer_outputs[self.network_structure[-1]['name']]
+        final_output = layer_outputs[self.ae_structure[-1]['name']]
          
         self.__reconstruct = theano.function([self.x], final_output)
         
@@ -172,11 +123,11 @@ class AutoEncoder(UnsupervisedModel):
         return recs
     
     def extract_features(self, data, representation_layer_name):
-        layer_outputs = self.network_fprop(isTest=True, noiseLess=True)
+        layer_outputs = self.network_fprop(self.layers, self.x, isTest=True, noiseless=True)
         final_output = layer_outputs[representation_layer_name]
         self.__extract_feat = theano.function([self.x], final_output)
         
-        output_idx = self.name_index_dic[representation_layer_name]
+        output_idx = self.ae_name_index_dic[representation_layer_name]
         outshape = self.layers[output_idx].getOutputShape()
         outshape = list[outshape]
         ndata = data.shape[0]
@@ -199,7 +150,7 @@ class AutoEncoder(UnsupervisedModel):
         assert len(data.shape) == 2, ('data should be passed in as a matrix, '
                                       'where each row represent one example')
         
-        assert feature_layer_name in self.name_index_dic, ('need to provide feature_layer_name '
+        assert feature_layer_name in self.ae_name_index_dic, ('need to provide feature_layer_name '
                                                            'that is in the current network structure')
         ndata = data.shape[0]
         trim_pred = False
@@ -210,14 +161,14 @@ class AutoEncoder(UnsupervisedModel):
             data = numpy.vstack((data, numpy.zeros((self.batch_size-ndata, data.shape[1]), dtype=data.dtype)))
             ndata = self.batch_size
         
-        layer_outputs = self.network_fprop(isTest=True, noiseless=noiseless)
+        layer_outputs = self.network_fprop(self.layers, self.x, isTest=True, noiseless=noiseless)
         h_given_x = layer_outputs[feature_layer_name]
 
         extract_feature = theano.function([self.x], h_given_x)
         
         
         nbatches = int(ceil(float(ndata)/self.batch_size))
-        features = numpy.zeros((ndata,)+self.layers[self.name_index_dic[feature_layer_name]].getOutputShape()[1:], 
+        features = numpy.zeros((ndata,)+self.layers[self.ae_name_index_dic[feature_layer_name]].getOutputShape()[1:], 
                                  dtype='float32')
         
         for i in xrange(nbatches):
@@ -251,10 +202,10 @@ class AutoEncoder(UnsupervisedModel):
                'data_provider need to be a subclass from UnlabeledDataProvider'
                ' so that it provides appropriate data for unsupervised models')
         
-        assert feature_layer_name in self.name_index_dic, ('need to provide feature_layer_name '
+        assert feature_layer_name in self.ae_name_index_dic, ('need to provide feature_layer_name '
                                                            'that is in the current network structure')
         
-        layer_outputs = self.network_fprop(isTest=True, noiseless=noiseless)
+        layer_outputs = self.network_fprop(self.layers, self.x, isTest=True, noiseless=noiseless)
         h_given_x = layer_outputs[feature_layer_name]
 
         
@@ -274,7 +225,7 @@ class AutoEncoder(UnsupervisedModel):
         
         ndata = data_provider.get_number_of_train_data()
         
-        features = numpy.zeros((ndata,)+self.layers[self.name_index_dic[feature_layer_name]].getOutputShape()[1:], 
+        features = numpy.zeros((ndata,)+self.layers[self.ae_name_index_dic[feature_layer_name]].getOutputShape()[1:], 
                                  dtype='float32')
         
         for minibatch_idx in xrange(data_provider.get_number_of_train_batches()):
@@ -312,10 +263,10 @@ class AutoEncoder(UnsupervisedModel):
             data = numpy.vstack((data, numpy.zeros((self.batch_size-ndata, data.shape[1]), dtype=data.dtype)))
             ndata = self.batch_size
         
-        layer_outputs = self.network_fprop(isTest=True, noiseless=noiseless)
+        layer_outputs = self.network_fprop(self.layers, self.x, isTest=True, noiseless=noiseless)
          
         # the reconstruction is always the last layer of the network
-        x_hat_given_x = layer_outputs[self.network_structure[-1]['name']]
+        x_hat_given_x = layer_outputs[self.ae_structure[-1]['name']]
          
         reconstruct = theano.function([self.x], x_hat_given_x)
         
@@ -337,7 +288,7 @@ class AutoEncoder(UnsupervisedModel):
                     p = reconstruct(crt_data)
                 else:
                     p = reconstruct(p)
-            
+                p = p.reshape((self.batch_size, -1))
             recs[batch_start:batch_end] = p.reshape((self.batch_size,-1))
         
         
@@ -357,10 +308,10 @@ class AutoEncoder(UnsupervisedModel):
                 'for noiseless case there is no need to taking multiple steps '
                 'in reconstruction')
         
-        layer_outputs = self.network_fprop(isTest=True, noiseless=noiseless)
+        layer_outputs = self.network_fprop(self.layers, self.x, isTest=True, noiseless=noiseless)
          
         # the reconstruction is always the last layer of the network
-        x_hat_given_x = layer_outputs[self.network_structure[-1]['name']]
+        x_hat_given_x = layer_outputs[self.ae_structure[-1]['name']]
 
         self.shared_train, _, _ = data_provider.get_train_data_and_idx(0)
         start_index, end_index = T.iscalars('s_i', 'e_i')

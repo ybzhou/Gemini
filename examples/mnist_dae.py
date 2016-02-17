@@ -21,6 +21,7 @@ from PIL import Image
 # from models.ForwardAE import ForwardAE
 from data import MNISTDataLoader
 from data import UnlabeledMemoryDataProvider, LabeledMemoryDataProvider
+from utils.model.activations import *
 
 seed = 1234
 numpy.random.seed(seed)
@@ -46,7 +47,7 @@ ae_ns = [
     'noise_type':'normal', 'noise_level':0.7, 'theano_rng':theano_rng},
           
     {'name':'full1', 'layer_input':'noise1', 'layer_type':'full', 'hiddens':1000, 
-     'w_init':weight_init.NormalizedWeightInit(numpy_rng), 'b_init':0, 'act_func':T.nnet.sigmoid,
+     'w_init':weight_init.NormalizedWeightInit(numpy_rng), 'b_init':0, 'act_func':Sigmoid(),
      'constraint':{'W':MaxColNormConstraint(3.86)},
      'learning_rate':{'W':LR_start, 'b':LR_start},
      'lr_scheduler':schedulers.AnnealScheduler(update_freq, L_decay, 1e-7)},
@@ -55,20 +56,20 @@ ae_ns = [
     'noise_type':'normal', 'noise_level':0.7, 'theano_rng':theano_rng},
           
     {'name':'full2', 'layer_input':'noise2', 'layer_type':'full', 'hiddens':1000, 
-     'w_init':weight_init.NormalizedWeightInit(numpy_rng), 'b_init':0, 'act_func':T.nnet.sigmoid,
+     'w_init':weight_init.NormalizedWeightInit(numpy_rng), 'b_init':0, 'act_func':Sigmoid(),
      'constraint':{'W':MaxColNormConstraint(3.86)},
      'learning_rate':{'W':LR_start, 'b':LR_start},
      'lr_scheduler':schedulers.AnnealScheduler(update_freq, L_decay, 1e-7)},
           
     {'name':'rec_full2', 'layer_input':'full2', 'layer_type':'full', 'hiddens':1000, 
-     'w_init':None, 'b_init':0., 'act_func':T.nnet.sigmoid,
+     'w_init':None, 'b_init':0., 'act_func':Sigmoid(),
      'tune':{'W':False, 'b':True},
      'share_weight_from_other_layer': ('full2', True),
      'learning_rate':{'W':LR_start, 'b':LR_start},
      'lr_scheduler':schedulers.AnnealScheduler(update_freq, L_decay, 1e-7)}, 
     
     {'name':'rec', 'layer_input':'rec_full2', 'layer_type':'full', 'hiddens':numpy.prod(image_size), 
-     'w_init':None, 'b_init':0., 'act_func':T.nnet.sigmoid,
+     'w_init':None, 'b_init':0., 'act_func':Sigmoid(),
      'tune':{'W':False, 'b':True},
      'share_weight_from_other_layer': ('full1', True),
      'learning_rate':{'W':LR_start, 'b':LR_start},
@@ -82,17 +83,17 @@ mlp_ns = [
     {'name': 'data1', 'layer_type':'data', 'input_type':'data','input_shape':(numpy.prod(image_size))},
     
     {'name':'full1', 'layer_input':'data1', 'layer_type':'full', 'hiddens':1000, 
-     'w_init':None, 'b_init':0, 'act_func':T.nnet.sigmoid,
+     'w_init':None, 'b_init':0, 'act_func':Sigmoid(),
      'learning_rate':{'W':LR_start, 'b':LR_start},
      'lr_scheduler':schedulers.AnnealScheduler(update_freq, L_decay, 1e-7)},
     
     {'name':'full2', 'layer_input':'full1', 'layer_type':'full', 'hiddens':1000, 
-     'w_init':None, 'b_init':0, 'act_func':T.nnet.sigmoid,
+     'w_init':None, 'b_init':0, 'act_func':Sigmoid(),
      'learning_rate':{'W':LR_start, 'b':LR_start},
      'lr_scheduler':schedulers.AnnealScheduler(update_freq, L_decay, 1e-7)},
           
     {'name':'output', 'layer_input':'full2', 'layer_type':'full', 'hiddens':10, 
-     'w_init':weight_init.NormalizedWeightInit(numpy_rng), 'b_init':0., 'act_func':T.nnet.softmax,
+     'w_init':weight_init.NormalizedWeightInit(numpy_rng), 'b_init':0., 'act_func':Softmax(),
      'learning_rate':{'W':LR_start, 'b':LR_start},
      'lr_scheduler':schedulers.AnnealScheduler(update_freq, L_decay, 1e-7)}, 
 ]

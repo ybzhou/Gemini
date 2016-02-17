@@ -7,11 +7,13 @@ import utils.model.optimizers as optimizers
 import utils.model.schedulers as schedulers
 import utils.model.weight_init as weight_init
 
+from utils.model.activations import *
 from utils.model.costs import SoftmaxCost
 from utils.model.regularizers import L2Regularizer
 from models import MLP
 from data import LabeledMemoryDataProvider
 from data import CIFAR10DataLoader
+
 
 seed = 1234
 numpy.random.seed(seed)
@@ -39,11 +41,11 @@ mlp_ns = [
      'lr_scheduler':schedulers.AnnealScheduler(update_freq=update_freq, anneal_coef=L_decay, min_rate=1e-7)},
           
     {'name':'pool1', 'layer_input':'conv1', 'layer_type':'pool', 
-     'pool_size':3, 'pool_stride':2, 'pool_mode':'max', 'act_func':T.nnet.relu},
+     'pool_size':3, 'pool_stride':2, 'pool_mode':'max', 'act_func':Rectifier()},
     
     {'name':'conv2', 'layer_input':'pool1', 'layer_type':'conv', 'channels':32, 
      'strid_size':1, 'pad':2, 'filter_size':5,
-     'w_init':weight_init.GaussianWeightInit(numpy_rng, 0.01), 'b_init':0., 'act_func':T.nnet.relu,
+     'w_init':weight_init.GaussianWeightInit(numpy_rng, 0.01), 'b_init':0., 'act_func':Rectifier(),
      'reg':{'W':L2Regularizer(0.004)},
      'learning_rate':{'W':0.001, 'b':0.002},
      'momentum':{'W':0.9, 'b':0.9},
@@ -54,7 +56,7 @@ mlp_ns = [
           
     {'name':'conv3', 'layer_input':'pool2', 'layer_type':'conv', 'channels':64, 
      'strid_size':1, 'pad':2, 'filter_size':5,
-     'w_init':weight_init.GaussianWeightInit(numpy_rng, 0.01), 'b_init':0., 'act_func':T.nnet.relu,
+     'w_init':weight_init.GaussianWeightInit(numpy_rng, 0.01), 'b_init':0., 'act_func':Rectifier(),
      'reg':{'W':L2Regularizer(0.004)},
      'learning_rate':{'W':0.001, 'b':0.002},
      'momentum':{'W':0.9, 'b':0.9},
@@ -64,14 +66,14 @@ mlp_ns = [
      'pool_size':3, 'pool_stride':2, 'pool_mode':'average', 'act_func':None},
           
     {'name':'full1', 'layer_input':'pool3', 'layer_type':'full', 'hiddens':64, 
-     'w_init':weight_init.GaussianWeightInit(numpy_rng, 0.1), 'b_init':0, 'act_func':T.nnet.relu,
+     'w_init':weight_init.GaussianWeightInit(numpy_rng, 0.1), 'b_init':0, 'act_func':Rectifier(),
      'reg':{'W':L2Regularizer(0.03)},
      'learning_rate':{'W':0.001, 'b':0.002},
      'momentum':{'W':0.9, 'b':0.9},
      'lr_scheduler':schedulers.AnnealScheduler(update_freq=update_freq, anneal_coef=L_decay, min_rate=1e-7)},
     
     {'name':'output', 'layer_input':'full1', 'layer_type':'full', 'hiddens':10, 
-     'w_init':weight_init.GaussianWeightInit(numpy_rng, 0.1), 'b_init':0, 'act_func':T.nnet.softmax,
+     'w_init':weight_init.GaussianWeightInit(numpy_rng, 0.1), 'b_init':0, 'act_func':Softmax(),
      'tune':{'W':True, 'b':True}, 'reg':{'W':L2Regularizer(0.03)},
      'learning_rate':{'W':0.001, 'b':0.002},
      'momentum':{'W':0.9, 'b':0.9},

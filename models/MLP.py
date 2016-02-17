@@ -61,13 +61,13 @@ class MLP(SupervisedModel):
         print '... compiling training functions'
         
         # propagte for training with batch normalization with upated std and mean for each batch
-        self.layer_outputs = self.network_fprop()
+        self.layer_outputs = self.network_fprop(self.layers, self.x, self.y)
         cost, show_cost = self.get_cost()
         self.opt = opt
         updates = self.opt.get_updates(cost, self.params)
         
         # propagate again for validation with fixed mean and std for batch normalization
-        self.layer_outputs = self.network_fprop(isTest=True, noiseless=True)
+        self.layer_outputs = self.network_fprop(self.layers, self.x, self.y, isTest=True, noiseless=True)
         self.final_output = self.layer_outputs[self.network_structure[-1]['name']]
         errors = self.get_errors()
         
@@ -113,53 +113,53 @@ class MLP(SupervisedModel):
                                                     givens = valid_given
                                                   )
     
-    def network_fprop(self, isTest = False, noiseless=False):
-        layer_outputs = {}
-        if isTest:
-            mode = 'test'
-        else:
-            mode = 'train'
-            
-        for layer_idx in xrange(len(self.layers)):
-            crt_layer = self.layers[layer_idx]
-            
-            if isinstance(crt_layer, layers.DataLayer):
-                if crt_layer.inputType == 'data':
-                    layer_outputs[crt_layer.layerName] = crt_layer.fprop(self.x)
-                elif crt_layer.inputType == 'label':
-                    layer_outputs[crt_layer.layerName] = crt_layer.fprop(self.y)
-                else:
-                    raise('unkown layer input type')
-            else:
-                
-                if noiseless and isinstance(crt_layer, layers.NoiseLayer):
-                    prev_noise_level = crt_layer.noiseLevel
-                    crt_layer.noiseLevel = 0
-                    
-                prev_layers = crt_layer.getPreviousLayer()
-            
-                # only concatenate layers takes multiple inputs
-                if len(prev_layers) > 1:
-                    input_for_crt_layer = []
-                    for l in prev_layers:
-                        input_for_crt_layer.append(layer_outputs[l.layerName])
-                else:
-                    input_for_crt_layer = layer_outputs[prev_layers[0].layerName]
-                
-                if isinstance(crt_layer, layers.BatchNormLayer):
-                    output_for_crt_layer = crt_layer.fprop(input_for_crt_layer, mode)
-                elif isinstance(crt_layer, layers.DropoutLayer) \
-                   or isinstance(crt_layer, layers.BatchStandardizeLayer):
-                    output_for_crt_layer = crt_layer.fprop(input_for_crt_layer, isTest)
-                else:
-                    output_for_crt_layer = crt_layer.fprop(input_for_crt_layer)
-                
-                layer_outputs[crt_layer.layerName] = output_for_crt_layer
-                
-                if noiseless and isinstance(crt_layer, layers.NoiseLayer):
-                    crt_layer.noiseLevel = prev_noise_level
-                    
-        return layer_outputs
+#     def network_fprop(self, isTest = False, noiseless=False):
+#         layer_outputs = {}
+#         if isTest:
+#             mode = 'test'
+#         else:
+#             mode = 'train'
+#             
+#         for layer_idx in xrange(len(self.layers)):
+#             crt_layer = self.layers[layer_idx]
+#             
+#             if isinstance(crt_layer, layers.DataLayer):
+#                 if crt_layer.inputType == 'data':
+#                     layer_outputs[crt_layer.layerName] = crt_layer.fprop(self.x)
+#                 elif crt_layer.inputType == 'label':
+#                     layer_outputs[crt_layer.layerName] = crt_layer.fprop(self.y)
+#                 else:
+#                     raise('unkown layer input type')
+#             else:
+#                 
+#                 if noiseless and isinstance(crt_layer, layers.NoiseLayer):
+#                     prev_noise_level = crt_layer.noiseLevel
+#                     crt_layer.noiseLevel = 0
+#                     
+#                 prev_layers = crt_layer.getPreviousLayer()
+#             
+#                 # only concatenate layers takes multiple inputs
+#                 if len(prev_layers) > 1:
+#                     input_for_crt_layer = []
+#                     for l in prev_layers:
+#                         input_for_crt_layer.append(layer_outputs[l.layerName])
+#                 else:
+#                     input_for_crt_layer = layer_outputs[prev_layers[0].layerName]
+#                 
+#                 if isinstance(crt_layer, layers.BatchNormLayer):
+#                     output_for_crt_layer = crt_layer.fprop(input_for_crt_layer, mode)
+#                 elif isinstance(crt_layer, layers.DropoutLayer) \
+#                    or isinstance(crt_layer, layers.BatchStandardizeLayer):
+#                     output_for_crt_layer = crt_layer.fprop(input_for_crt_layer, isTest)
+#                 else:
+#                     output_for_crt_layer = crt_layer.fprop(input_for_crt_layer)
+#                 
+#                 layer_outputs[crt_layer.layerName] = output_for_crt_layer
+#                 
+#                 if noiseless and isinstance(crt_layer, layers.NoiseLayer):
+#                     crt_layer.noiseLevel = prev_noise_level
+#                     
+#         return layer_outputs
     
     def get_cost(self):
         # get network cost
@@ -193,7 +193,7 @@ class MLP(SupervisedModel):
             data = numpy.vstack((data, numpy.zeros((self.batch_size-ndata, data.shape[1]), dtype=data.dtype)))
             ndata = self.batch_size
             
-        layer_outputs = self.network_fprop(isTest=True, noiseless=noiseless)
+        layer_outputs = self.network_fprop(self.layers, self.x, self.y, isTest=True, noiseless=noiseless)
         
         final_output = layer_outputs[feature_layer_name]
 
@@ -238,7 +238,7 @@ class MLP(SupervisedModel):
         assert feature_layer_name in self.name_index_dic, ('need to provide feature_layer_name '
                                                            'that is in the current network structure')
         
-        layer_outputs = self.network_fprop(isTest=True, noiseless=noiseless)
+        layer_outputs = self.network_fprop(self.layers, self.x, self.y, isTest=True, noiseless=noiseless)
         
         # assumes the output is always the last layer of the network for now
         final_output = layer_outputs[feature_layer_name]
