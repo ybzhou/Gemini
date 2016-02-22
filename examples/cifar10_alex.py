@@ -1,5 +1,7 @@
 import cPickle
 import numpy
+import os
+
 import theano.tensor as T
 import theano.sandbox.rng_mrg as MRG_RNG
 
@@ -82,11 +84,11 @@ mlp_ns = [
 
 mlp_cost = {'output':('label', SoftmaxCost())}
 
-
-def test_cifar():
+data_path = '/data/Research/datasets/cifar10/cifar-10-batches-py'
+def test_cifar(data_path):
     print 'loading data'
     
-    dl = CIFAR10DataLoader(cifar_file_path='/data/Research/datasets/cifar10/cifar-10-batches-py',
+    dl = CIFAR10DataLoader(cifar_file_path=data_path,
                            load_dtype='float32')
     
     dp = LabeledMemoryDataProvider(data_loader=dl, 
@@ -113,7 +115,7 @@ def test_cifar():
     mlp.save('alex_cifar_26_model.joblib')
 #     mlp.load('alex_cifar_26_model.joblib') 
 #     
-    f = open('/data/Research/datasets/cifar10/cifar-10-batches-py/test_batch', 'rb')
+    f = open(os.path.join(data_path,'test_batch'), 'rb')
     data = cPickle.load(f)
     f.close()
     test_set = data['data']
@@ -137,30 +139,6 @@ def test_cifar():
     pred = mlp.predict_from_data_provider(dp, train_mean=tm, batch_mean_subtraction=True)
     print 'Error: ', numpy.mean(pred!=test_y)
     
-def write_cifar():
-    for i in xrange(5):
-        f = open('/data/Research/datasets/cifar10/cifar-10-batches-py/data_batch_%d' % (i+1), 'rb')
-        data = cPickle.load(f)
-        f.close()
-        if i == 0:
-            train_set = data['data']
-            train_y = data['labels']
-        else:
-            train_set = numpy.vstack((train_set, data['data']))
-            train_y = numpy.hstack((train_y, data['labels']))
-            
-    import hickle
-    hickle.dump((train_set, train_y), '/data/Research/datasets/cifar10/cifar-10-batches-py/train.hic',
-                compression='gzip')
-
-    f = open('/data/Research/datasets/cifar10/cifar-10-batches-py/test_batch', 'rb')
-    data = cPickle.load(f)
-    f.close()
-    test_set = data['data']
-    test_y = data['labels']
-    
-    hickle.dump((test_set, test_y), '/data/Research/datasets/cifar10/cifar-10-batches-py/test.hic',
-                compression='gzip')
 if __name__ == '__main__':
 #     write_cifar()
-    test_cifar()
+    test_cifar(data_path)
