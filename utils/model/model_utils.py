@@ -8,6 +8,8 @@ import PIL.Image
 
 import theano.tensor as T
 
+from activations import Activation
+
 def raiseNotDefined():
     fileName = inspect.stack()[1][1]
     line = inspect.stack()[1][2]
@@ -60,16 +62,8 @@ def generate_network_plot(network_layers):
             acttype = 'unknown'
             if crt_layer.actFunc == None:
                 acttype = 'linear'
-            elif crt_layer.actFunc == T.nnet.sigmoid:
-                acttype = 'sigmoid'
-            elif crt_layer.actFunc == T.nnet.relu:
-                acttype = 'relu'
-            elif crt_layer.actFunc == T.tanh:
-                acttype = 'tanh'
-            elif crt_layer.actFunc == T.nnet.softmax:
-                acttype = 'softmax'
-            elif crt_layer.actFunc == T.nnet.softplus:
-                acttype = 'softplus'
+            elif isinstance(crt_layer.actFunc, Activation):
+                acttype = crt_layer.actFunc.name
                 
             label_text += ('\nact: %s' % acttype)
 
@@ -228,14 +222,15 @@ def obtain_network(batch_size,
                 inputSize = (batch_size, )
                 crtLayerSpec['input_shape'] = inputSize
                 
-        elif isinstance(network_layers[layer_idx], layers.ReshapeLayer):
-            if isinstance(crtLayerSpec['shape'], tuple):
-                crtLayerSpec['shape'] = (batch_size,)+crtLayerSpec['shape']
-            elif isinstance(crtLayerSpec['shape'], int):
-                crtLayerSpec['shape'] = (batch_size, crtLayerSpec['shape'])
-            else:
-                raise 'input_shape of data layer need to be either a tuple or an integer'
         else:
+            if isinstance(network_layers[layer_idx], layers.ReshapeLayer):
+                if isinstance(crtLayerSpec['shape'], tuple):
+                    crtLayerSpec['shape'] = (batch_size,)+crtLayerSpec['shape']
+                elif isinstance(crtLayerSpec['shape'], int):
+                    crtLayerSpec['shape'] = (batch_size, crtLayerSpec['shape'])
+                else:
+                    raise 'shape of reshape layer need to be either a tuple or an integer'
+            
             # input size will be the previous layer output size
             prevLayer = network_layers[layer_idx].getPreviousLayer()
             # all layers except concatenation layer takes only one input
