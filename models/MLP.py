@@ -26,7 +26,12 @@ class MLP(SupervisedModel):
         for ls  in self.network_structure:
             if ls['layer_type'] == 'data' and ls['input_type'] == 'label':
                 if 'input_shape' in ls:
-                    self.label_dims = len(ls['input_shape'])
+                    if isinstance(ls['input_shape'], tuple):
+                        self.label_dims = len(ls['input_shape'])+1
+                    elif isinstance(ls['input_shape'], int):
+                        self.label_dims = 2
+                    else:
+                        raise 'input_shape has to either be an integer or tuple'
                 else:
                     self.label_dims = 1
         
