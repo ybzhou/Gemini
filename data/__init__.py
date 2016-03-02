@@ -4,3 +4,4 @@ from unlabeled_data_provider import UnlabeledMemoryDataProvider
 from data_loader import DataLoader
 from cifar10_data_loader import CIFAR10DataLoader
 from mnist_data_loader import MNISTDataLoader
+from sun_data_loader import SUNDataLoader

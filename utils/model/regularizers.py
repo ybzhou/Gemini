@@ -2,12 +2,19 @@ import abc
 import theano.tensor as T
 
 class Regularizer:
+    __metaclass__ = abc.ABCMeta
     def __init__(self, coef):
         self.coef = coef
     
     @abc.abstractmethod
     def getRegularization(self, param):
         raise('Unimplemented Error')
+    
+    def getRegularizationCoef(self):
+        return self.coef
+    
+    def setRegularizationCoef(self, coef):
+        self.coef = coef
     
 class L2Regularizer(Regularizer):
     def getRegularization(self, param):

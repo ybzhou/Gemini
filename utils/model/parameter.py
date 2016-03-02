@@ -121,6 +121,15 @@ class Parameter:
                 reg += self.params[pn]['regularizer'].getRegularization(self.params[pn]['value'])
         return reg
     
+    def setParamRegularizationValue(self, pname, val):
+        self.params[pname]['regularizer'].setRegularizationCoef(val)
+        
+    def getParamRegularizationValue(self, pname):
+        return self.params[pname]['regularizer'].getRegularizationCoef()
+    
+    def getRegularizedParamNames(self):
+        return [pname for pname in self.params if self.params[pname]['regularizer'] is not None]
+    
     def setParamConstraint(self, constraint):
         for k in constraint.keys():
             self.params[k]['constraint'] = constraint[k]

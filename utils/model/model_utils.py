@@ -175,8 +175,8 @@ def obtain_network(batch_size,
             crtLayer = layers.BatchNormLayer()
         elif crtLayerSpec['layer_type'] == 'deconv':
             crtLayer = layers.DeConvLayer()
-        elif crtLayerSpec['layer_type'] == 'ben_layer':
-            crtLayer = layers.BatchExpNormLayer()
+        elif crtLayerSpec['layer_type'] == 'contrast_norm':
+            crtLayer = layers.ContrastNormLayer()
         elif crtLayerSpec['layer_type'] == 'dropout':
             crtLayer = layers.DropoutLayer()
         elif crtLayerSpec['layer_type'] == 'norm_full':

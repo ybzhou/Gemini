@@ -3,7 +3,7 @@ import abc
 import theano.tensor as T
 
 
-__all__ = ['Sigmoid', 'Tanh', 'Rectifier', 'Softmax', 'Softplus']
+__all__ = ['Sigmoid', 'Tanh', 'Rectifier', 'Softmax', 'Softplus', 'LeakyRelu']
 
 class Activation:
     __metaclass__ = abc.ABCMeta
@@ -39,3 +39,13 @@ class Softplus(Activation):
     name = 'softplus'
     def act_func(self, x):
         return T.nnet.softplus(x)
+    
+class LeakyRelu(Activation):
+    def __init__(self, slope):
+        self.name = 'LeakyRelu'
+        self.slope = slope
+    
+    def act_func(self, x):
+        pos = 0.5*(1+self.slope)
+        neg = 0.5*(1-self.slope)
+        return pos*x + neg*T.abs_(x)

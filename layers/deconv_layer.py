@@ -21,7 +21,7 @@ class DeConvLayer(Layer):
     def constructLayer(self, inputShape, initParams, name, batch_size, w_init, 
                        channels, filter_size, 
                        strid_size=1, pad=0, b_init=0, act_func=None, 
-                       lr_scheduler=None, 
+                       lr_scheduler=None, algo='small',
                        W_expr=None, **layerSpecs):
         self.layerName = name
         self.batchSize = batch_size
@@ -30,6 +30,7 @@ class DeConvLayer(Layer):
         self.wInit = w_init
         self.bInit = b_init
         self.actFunc = act_func
+        self.algo = algo
         self.params.setLearningRateScheduler(lr_scheduler)
         
         nFilters = channels
@@ -119,7 +120,8 @@ class DeConvLayer(Layer):
                 img = dummy_v,
                 kerns = self.params.getParameter('W'),
                 border_mode=(self.nPad, self.nPad),
-                subsample=(self.strideSize, self.strideSize)
+                subsample=(self.strideSize, self.strideSize),
+                algo = self.algo
             )
         # this is the real direction for deconv, which is just the opposite of
         # the true convolution

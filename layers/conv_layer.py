@@ -21,6 +21,7 @@ class ConvLayer(Layer):
     def constructLayer(self, inputShape, initParams, name, batch_size, w_init, 
                        channels, filter_size, strid_size=1, pad=0, b_init=0, 
                        act_func=None, lr_scheduler=None, W_expr=None, ignore_bias=False, 
+                       algo='small',
                        **layerSpecs):
         self.layerName = name
         self.batchSize = batch_size
@@ -30,6 +31,7 @@ class ConvLayer(Layer):
         self.bInit = b_init
         self.actFunc = act_func
         self.ignore_bias = ignore_bias
+        self.algo = algo
         self.params.setLearningRateScheduler(lr_scheduler)
         
         nFilters = channels
@@ -117,7 +119,7 @@ class ConvLayer(Layer):
                     kerns=self.params.getParameter('W'), 
                     border_mode=(self.nPad, self.nPad),
                     subsample=(self.strideSize, self.strideSize),
-                    workmem=None)
+                    algo=self.algo)
         
         if not self.ignore_bias:
             conv_out +=  self.params.getParameter('b').dimshuffle('x', 0, 'x', 'x')

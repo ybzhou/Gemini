@@ -128,4 +128,64 @@ def tile_raster_images(X, img_shape, tile_shape, tile_spacing=(0, 0),
                         tile_col * (W + Ws): tile_col * (W + Ws) + W
                     ] = this_img * c
         return out_array
+
+def tile_raster_images_color(X, img_shape, tile_shape, tile_spacing=(0, 0),
+                       scale_rows_to_unit_interval=True,
+                       output_pixel_vals=True):
+   
+    assert len(img_shape) == 2
+    assert len(tile_shape) == 2
+    assert len(tile_spacing) == 2
+
+    # The expression below can be re-written in a more C style as
+    # follows :
+    #
+    # out_shape    = [0,0]
+    # out_shape[0] = (img_shape[0]+tile_spacing[0])*tile_shape[0] -
+    #                tile_spacing[0]
+    # out_shape[1] = (img_shape[1]+tile_spacing[1])*tile_shape[1] -
+    #                tile_spacing[1]
+    out_shape = [(ishp + tsp) * tshp - tsp for ishp, tshp, tsp
+                        in zip(img_shape, tile_shape, tile_spacing)] + [3]
+
+    # if we are dealing with only one channel
+    H, W = img_shape
+    Hs, Ws = tile_spacing
+
+    # generate a matrix to store the output
+    dt = X.dtype
+    if output_pixel_vals:
+        dt = 'uint8'
+    out_array = numpy.zeros(out_shape, dtype=dt)
     
+    this_img = numpy.zeros((H, W, 3))
+    for tile_row in xrange(tile_shape[0]):
+        for tile_col in xrange(tile_shape[1]):
+            if tile_row * tile_shape[1] + tile_col < X.shape[0]:
+                this_x = X[tile_row * tile_shape[1] + tile_col].reshape((3, H, W))
+                if scale_rows_to_unit_interval:
+                    # if we should scale values to be between 0 and 1
+                    # do this by calling the `scale_to_unit_interval`
+                    # function
+#                     for i in xrange(3):
+#                         this_img[:,:,i] = scale_to_unit_interval(
+#                             this_x[i,:,:])
+                    xx = scale_to_unit_interval(
+                            this_x)
+                    xx = xx.reshape((3,H,W))
+                    for i in xrange(3):
+                        this_img[:,:,i] = scale_to_unit_interval(
+                            xx[i,:,:])
+                else:
+                    this_img = this_x.swapaxes(0,2).swapaxes(0,1)
+                # add the slice to the corresponding position in the
+                # output array
+                c = 1
+                if output_pixel_vals:
+                    c = 255
+                out_array[
+                    tile_row * (H + Hs): tile_row * (H + Hs) + H,
+                    tile_col * (W + Ws): tile_col * (W + Ws) + W,
+                    :
+                    ] = this_img * c
+    return out_array
