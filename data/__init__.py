@@ -5,3 +5,4 @@ from data_loader import DataLoader
 from cifar10_data_loader import CIFAR10DataLoader
 from mnist_data_loader import MNISTDataLoader
 from sun_data_loader import SUNDataLoader
+from lsun_data_loader import UnlabeledLSUNDataLoader
