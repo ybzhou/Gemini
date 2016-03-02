@@ -363,7 +363,6 @@ class EncDecAN(AutoEncoder):
             prior_gen_cost = []
             prior_dis_cost = []
             ae_cost = []
-#             dis_cost = []
             
             for minibatch_index in xrange(n_train_batches):
                 (self.shared_train, batch_start_idx, batch_end_idx) = \
