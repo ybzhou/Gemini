@@ -15,5 +15,5 @@ from dropout_layer import DropoutLayer
 from norm_full_layer import NormFullLayer
 from norm_conv_layer import NormConvLayer
 from batch_standard_layer import BatchStandardizeLayer
-from contrast_norm_layer import ContrastNormLayer
+# from contrast_norm_layer import ContrastNormLayer
 # from batch_exp_norm_layer import BatchExpNormLayer
