@@ -107,7 +107,7 @@ class DiskDataProvider(DataProvider):
     
     @staticmethod
     def _update_gpu_batch_data(minibatch_index, nbatches_per_gpu, ram_updated,
-                                gpu_chunck_index, max_gpu_samples,
+                                gpu_chunck_index, max_gpu_samples,batch_size,
                                 data, label, current_ram_samples,
                                 out_gpu_data, out_gpu_label):
         '''update the large chunck of data on gpu if necessary, based on
@@ -269,6 +269,7 @@ class UnlabeledDiskDataProvider(DiskDataProvider, UnlabeledDataProvider):
                                                        gpu_chunck_index=self.gpu_train_chunk_index, 
                                                        max_gpu_samples=self.max_gpu_train_samples, 
                                                        current_ram_samples=crt_ram_samples,
+                                                       batch_size=self.batch_size,
                                                        data=self.ram_train_data, 
                                                        label=None, 
                                                        out_gpu_data=self.shared_train_data, 
@@ -284,7 +285,7 @@ class UnlabeledDiskDataProvider(DiskDataProvider, UnlabeledDataProvider):
                                                           nbatches_per_ram=self.nvalid_batches_ram,
                                                           ram_chunk_index=self.ram_valid_chunk_index, 
                                                           max_ram_samples=self.max_ram_valid_samples, 
-                                                          total_num_samples=self.nvalid_data, 
+                                                          total_num_samples=self.nvalid_data,
                                                           data=self.valid_data, 
                                                           label=None, 
                                                           out_ram_data=self.ram_valid_data, 
@@ -296,6 +297,7 @@ class UnlabeledDiskDataProvider(DiskDataProvider, UnlabeledDataProvider):
                                                        gpu_chunck_index=self.gpu_valid_chunk_index, 
                                                        max_gpu_samples=self.max_gpu_valid_samples, 
                                                        current_ram_samples=crt_ram_samples,
+                                                       batch_size=self.batch_size,
                                                        data=self.ram_valid_data, 
                                                        label=None, 
                                                        out_gpu_data=self.shared_valid_data, 
