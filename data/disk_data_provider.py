@@ -7,7 +7,7 @@ import theano
 import warnings
 from data.data_provider import UnlabeledDataProvider
 
-__all__ = ['DiskDataProvider']
+__all__ = ['DiskDataProvider', 'UnlabeledDiskDataProvider']
 
 class DiskDataProvider(DataProvider):
     
@@ -305,7 +305,7 @@ class UnlabeledDiskDataProvider(DiskDataProvider, UnlabeledDataProvider):
         return self.shared_valid_data, gpu_sample_start_index, gpu_sample_end_index
     
     def get_data_stats(self):
-        pass
+        return self.data_loader.get_data_stats()
     
 # test
 if __name__ == '__main__':

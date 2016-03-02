@@ -44,3 +44,7 @@ class DataLoader(object):
     @abc.abstractmethod
     def get_data_dims(self):
         pass
+    
+    @abc.abstractmethod
+    def get_data_stats(self):
+        pass

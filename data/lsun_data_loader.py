@@ -52,3 +52,6 @@ class UnlabeledLSUNDataLoader(DataLoader):
     def get_data_dims(self):
         return self.train_data.shape[1]
     
+    def get_data_stats(self):
+        return self.train_mean
+    
