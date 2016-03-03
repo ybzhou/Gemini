@@ -13,6 +13,7 @@ from utils.model.model_utils import obtain_network, validate_network
 from auto_encoder import AutoEncoder
 from math import ceil
 from data import UnlabeledDataProvider
+from scipy.misc import imsave
 
 __all__ = ['EncDecAN']
 
@@ -293,7 +294,7 @@ class EncDecAN(AutoEncoder):
     
     
     def fit(self, data_provider, train_epoch, optimizer,data_target_name,
-            display_func=None, display_freq=-1,
+            display_func=None, display_freq=-1, show_iteration=-1,
             valid_freq=None, noiseless_validation=True,
             dump_freq=-1, train_mean=None, batch_mean_subtraction=False,
             batch_data_process_func = None,
@@ -392,19 +393,27 @@ class EncDecAN(AutoEncoder):
                     self.dump()
                     
                 if display_freq > 0 and display_func is not None and it%display_freq == 0:
-                    display_func(self.sample(self.batch_size))
+                    image = display_func(self.sample(self.batch_size))
+                    imsave('%d_gen_image.jpg' % it, image)
             
-            print ('Epoch %d, AE cost: %.4f, Data-G cost: %.4f, Data-D cost: %.4f, '
-                   'Prior-G cost: %.4f, Prior-D cost: %.4f' % 
-                   (epoch, numpy.mean(ae_cost), 
-                    numpy.mean(data_gen_cost), numpy.mean(data_dis_cost), 
-                    numpy.mean(prior_gen_cost), numpy.mean(prior_dis_cost))),
+                if ( iter != 0 and (show_iteration > 0 and iter % show_iteration==0) 
+                    or (show_iteration<0 and iter % n_train_batches==0)):
+                    print ('Epoch %d, Iter: %d,  AE cost: %.4f, Data-G cost: %.4f, Data-D cost: %.4f, '
+                           'Prior-G cost: %.4f, Prior-D cost: %.4f' % 
+                           (epoch, it, numpy.mean(ae_cost), 
+                            numpy.mean(data_gen_cost), numpy.mean(data_dis_cost), 
+                            numpy.mean(prior_gen_cost), numpy.mean(prior_dis_cost))),
+                            
+                    data_gen_cost = []
+                    data_dis_cost = []
+                    prior_gen_cost = []
+                    prior_dis_cost = []
+                    ae_cost = []
             
-            
-            if self.nvalid_batches <= 0: # in case of no validation
-                self.copyParamsToBest()
-
-            print ', time cost: %.4f' % (time.clock() - epoch_start)
+                if self.nvalid_batches <= 0: # in case of no validation
+                    self.copyParamsToBest()
+    
+                print ', time cost: %.4f' % (time.clock() - epoch_start)
             
             
         end_time = time.clock()
