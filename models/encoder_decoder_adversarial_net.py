@@ -364,7 +364,7 @@ class EncDecAN(AutoEncoder):
             prior_gen_cost = []
             prior_dis_cost = []
             ae_cost = []
-            
+            data_dis_iter = 0
             for minibatch_index in xrange(n_train_batches):
                 (self.shared_train, batch_start_idx, batch_end_idx) = \
                     data_provider.get_train_data_and_idx(minibatch_index)
@@ -376,6 +376,7 @@ class EncDecAN(AutoEncoder):
                     train_data_dis_model = False
                 
                 if train_data_dis_model:
+                    data_dis_iter += 1
                     self.train_data_dis_model(batch_start_idx, batch_end_idx)
                 
                 z = self.noise_func(self.batch_size, self.num_z)
@@ -396,11 +397,11 @@ class EncDecAN(AutoEncoder):
                     image = display_func(self.sample(self.batch_size))
                     imsave('%d_gen_image.jpg' % it, image)
             
-                if ( iter != 0 and (show_iteration > 0 and iter % show_iteration==0) 
-                    or (show_iteration<0 and iter % n_train_batches==0)):
-                    print ('Epoch %d, Iter: %d,  AE cost: %.4f, Data-G cost: %.4f, Data-D cost: %.4f, '
+                if ( it != 0 and (show_iteration > 0 and it % show_iteration==0) 
+                    or (show_iteration<0 and it % n_train_batches==0)):
+                    print ('Epoch %d, Iter: %d, Data-D Train Iter: %d\nAE cost: %.4f, Data-G cost: %.4f, Data-D cost: %.4f, '
                            'Prior-G cost: %.4f, Prior-D cost: %.4f' % 
-                           (epoch, it, numpy.mean(ae_cost), 
+                           (epoch, it, data_dis_iter, numpy.mean(ae_cost), 
                             numpy.mean(data_gen_cost), numpy.mean(data_dis_cost), 
                             numpy.mean(prior_gen_cost), numpy.mean(prior_dis_cost))),
                             
