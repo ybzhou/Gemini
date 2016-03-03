@@ -356,7 +356,7 @@ class EncDecAN(AutoEncoder):
         train_data_dis_model = True
         
         while (epoch < train_epoch):
-            epoch_start = time.clock()
+            
             
             epoch = epoch + 1
             data_gen_cost = []
@@ -366,6 +366,7 @@ class EncDecAN(AutoEncoder):
             ae_cost = []
             data_dis_iter = 0
             for minibatch_index in xrange(n_train_batches):
+                iter_start = time.clock() 
                 (self.shared_train, batch_start_idx, batch_end_idx) = \
                     data_provider.get_train_data_and_idx(minibatch_index)
                 
@@ -410,11 +411,12 @@ class EncDecAN(AutoEncoder):
                     prior_gen_cost = []
                     prior_dis_cost = []
                     ae_cost = []
+                    print ', time cost: %.4f' % (time.clock() - iter_start)
             
                 if self.nvalid_batches <= 0: # in case of no validation
                     self.copyParamsToBest()
     
-                print ', time cost: %.4f' % (time.clock() - epoch_start)
+                
             
             
         end_time = time.clock()
