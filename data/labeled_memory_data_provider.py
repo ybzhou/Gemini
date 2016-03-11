@@ -145,18 +145,14 @@ class LabeledMemoryDataProvider(LabeledDataProvider):
     def get_train_labeled_data_and_idx(self, minibatch_index):
         assert minibatch_index < ceil(float(self.ntrain_data)/self.batch_size), \
             'using minibatch of index %d (starting from 0) but only have %d minibatches' % (minibatch_index, ceil(float(self.ntrain_data)/self.batch_size))
+        train_data, train_label = self.train_data, self.train_label
         # perturbe the data every epoch
-        if not self.is_test and self.epochwise_shuffle and minibatch_index == 0:
-            perm_idx = numpy.random.permutation(self.ntrain_data)
-            if self.perturb_function is not None:
-                train_data, train_label = self.perturb_function(self.train_data[perm_idx], self.train_label[perm_idx])
-            else:
-                train_data, train_label = self.train_data[perm_idx], self.train_label[perm_idx]
-        else:
+        if not self.is_test and minibatch_index == 0:
+            if self.epochwise_shuffle:
+                perm_idx = numpy.random.permutation(self.ntrain_data)
+                train_data, train_label = self.train_data[perm_idx], self.train_label[perm_idx]     
             if self.perturb_function is not None:
                 train_data, train_label = self.perturb_function(self.train_data, self.train_label)
-            else:
-                train_data, train_label = self.train_data, self.train_label
             
         gpu_sample_start_index, gpu_sample_end_index, self.gpu_train_chunk_index = \
                 LabeledMemoryDataProvider.__update_gpu_batch_data(minibatch_index=minibatch_index, 
