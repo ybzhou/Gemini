@@ -11,16 +11,6 @@ class TFDDataLoader(DataLoader):
         data = io.loadmat(os.path.join(tfd_file_path, 'TFD_48x48.mat'))
         X = numpy.asarray(data['images'], dtype=load_dtype)
         X = X.reshape((X.shape[0], X.shape[1] * X.shape[2]))
-    #     image = PIL.Image.fromarray(tile_raster_images(X=X,
-    #         img_shape=(96,96), tile_shape=(10, 10),
-    #         tile_spacing=(1, 1)))
-    #     image.show()
-    #     labels  = data['labs_ex'].flatten()
-    #     labeled = labels != -1
-    #     unlabeled   =   labels == -1  
-    #     train_X =   X[unlabeled]
-    #     valid_X =   X[unlabeled][:500] # Stuf
-    #     test_X  =   X[labeled]
         train_idx = data['folds'][:,fold] == 0
         valid_idx = data['folds'][:,fold] == 2
         test_idx = data['folds'][:,fold] == 3
