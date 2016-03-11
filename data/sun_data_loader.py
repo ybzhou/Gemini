@@ -73,3 +73,6 @@ class SUNDataLoader(DataLoader):
     def get_data_dims(self):
         return self.data.shape[1]
     
+    def get_data_stats(self):
+        return self.data.mean(axis=0)
+    

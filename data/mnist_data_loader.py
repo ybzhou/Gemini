@@ -63,3 +63,6 @@ class MNISTDataLoader(DataLoader):
     
     def get_data_dims(self):
         return self.train_x.shape[1]
+    
+    def get_data_stats(self):
+        return self.train_x.mean(axis=0)

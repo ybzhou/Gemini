@@ -7,3 +7,4 @@ from mnist_data_loader import MNISTDataLoader
 from sun_data_loader import SUNDataLoader
 from lsun_data_loader import UnlabeledLSUNDataLoader
 from disk_data_provider import UnlabeledDiskDataProvider
+from tfd_data_loader import TFDDataLoader

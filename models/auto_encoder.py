@@ -122,30 +122,6 @@ class AutoEncoder(UnsupervisedModel):
                     
         return recs
     
-    def extract_features(self, data, representation_layer_name):
-        layer_outputs = self.network_fprop(self.layers, self.x, isTest=True, noiseless=True)
-        final_output = layer_outputs[representation_layer_name]
-        self.__extract_feat = theano.function([self.x], final_output)
-        
-        output_idx = self.ae_name_index_dic[representation_layer_name]
-        outshape = self.layers[output_idx].getOutputShape()
-        outshape = list[outshape]
-        ndata = data.shape[0]
-        outshape[0] = ndata
-        outshape = tuple(outshape)
-        nbatches = int(ceil(ndata/self.batch_size))
-        feats = numpy.zeros(outshape, dtype='float32')
-        
-        for i in xrange(nbatches):
-            batch_start = i*self.batch_size
-            batch_end = (i+1)*self.batch_size
-            if batch_end > ndata:
-                batch_end = ndata
-            
-            feats[batch_start:batch_end] = self.__extract_feat(data[batch_start:batch_end])
-                    
-        return feats
-    
     def extract_feature_from_memory_data(self, data, feature_layer_name, niter=1, noiseless=False):
         assert len(data.shape) == 2, ('data should be passed in as a matrix, '
                                       'where each row represent one example')
