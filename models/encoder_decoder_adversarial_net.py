@@ -94,7 +94,7 @@ class EncDecAN(AutoEncoder):
         prior_dis_updates = self.opt.get_updates(prior_dis_cost, self.prior_dis_params)
         data_gen_updates = self.opt.get_updates(data_gen_cost, self.dec_params)
         data_dis_updates = self.opt.get_updates(data_dis_cost, self.data_dis_params)
-        ae_updates = self.opt.get_updates(rec_cost+data_gen_cost, self.enc_params+self.dec_params) #
+        ae_updates = self.opt.get_updates(rec_cost, self.enc_params) #+rec_cost +self.dec_params
         
         start_index, end_index = T.iscalars('s_i', 'e_i')
         if self.uint8_data:
@@ -110,28 +110,28 @@ class EncDecAN(AutoEncoder):
         if self.batch_data_process_func is not None:
             given_train_x = self.batch_data_process_func(given_train_x)
         
-        self.get_data_dis_cost = theano.function(
-                              [start_index, end_index],
-                              data_dis_show_cost,
-                              givens={self.x:given_train_x}
-                              )
-        
+#         self.get_data_dis_cost = theano.function(
+#                               [start_index, end_index, self.z], #
+#                               data_dis_show_cost,
+#                               givens={self.x:given_train_x}
+#                               )
+         
         self.train_ae_model = theano.function(
                               [start_index, end_index],
-                              [rec_show_cost, data_gen_show_cost],
+                              rec_show_cost,
                               updates=ae_updates,
                               givens={self.x:given_train_x}
                                 )
         
         self.train_data_gen_model = theano.function(
-                [start_index, end_index],
+                [self.z], #[start_index, end_index],#
                 data_gen_show_cost,
                 updates=data_gen_updates,
-                givens={self.x:given_train_x}
+#                 givens={self.x:given_train_x}
                 )
         
         self.train_data_dis_model = theano.function(
-                [start_index, end_index],
+                [start_index, end_index, self.z], #
                 data_dis_show_cost,
                 updates=data_dis_updates,
                 givens={self.x:given_train_x}
@@ -200,7 +200,7 @@ class EncDecAN(AutoEncoder):
         # decoding
         
         decoder_outputs = self.network_fprop(network_layers=self.dec_layers, 
-                                             x=fake_prior, # self.z 
+                                             x= self.z, # fake_prior, # 
                                              isTest=isTest, 
                                              noiseless=noiseless)
         
@@ -250,9 +250,9 @@ class EncDecAN(AutoEncoder):
                                              x=fake_prior, 
                                              isTest=isTest, 
                                              noiseless=noiseless)
-        
+         
         rec_out = reconstruction_outputs[self.decoder_ns[-1]['name']]
-
+ 
         rec_obj = self.cost_func.getCost(encoder_outputs[self.data_target_name], 
                                       rec_out)
         rec_reg = 0
@@ -292,6 +292,233 @@ class EncDecAN(AutoEncoder):
         
         return ret
     
+    def sample_from_latent_space(self, zvalues, noiseless=True):
+        gen_outputs = self.network_fprop(network_layers=self.dec_layers, 
+                                         x=self.z, 
+                                         isTest=True, 
+                                         noiseless=noiseless)
+        sample_func = theano.function([self.z], gen_outputs[self.decoder_ns[-1]['name']])
+        nsamples = zvalues.shape[0]
+        nbatches = int(ceil(float(nsamples)/self.batch_size))
+        ret = numpy.zeros((nsamples, numpy.prod(self.data_discrim_ns[0]['input_shape'])/self.batch_size), dtype='float32')
+        for i in xrange(nbatches):
+            batch_start = i*self.batch_size
+            batch_end = (i+1)*self.batch_size
+            if batch_end > nsamples:
+                batch_end = nsamples
+                batch_start = batch_end - self.batch_size
+
+            ret[batch_start:batch_end] = sample_func(zvalues[batch_start:batch_end]).reshape(self.batch_size,-1)
+        
+        return ret
+    
+    def extract_feature_from_memory_data(self, data, feature_layer_name, niter=1, noiseless=False):
+        assert len(data.shape) == 2, ('data should be passed in as a matrix, '
+                                      'where each row represent one example')
+        
+        assert feature_layer_name in self.ae_name_index_dic, ('need to provide feature_layer_name '
+                                                           'that is in the current network structure')
+        ndata = data.shape[0]
+        trim_pred = False
+        if ndata < self.batch_size:
+            trim_pred = True
+            true_ndata = ndata
+            # pad the rest with zeros
+            data = numpy.vstack((data, numpy.zeros((self.batch_size-ndata, data.shape[1]), dtype=data.dtype)))
+            ndata = self.batch_size
+        
+        layer_outputs = self.network_fprop(self.enc_layers, self.x, isTest=True, noiseless=noiseless)
+        h_given_x = layer_outputs[feature_layer_name]
+
+        extract_feature = theano.function([self.x], h_given_x)
+        
+        
+        nbatches = int(ceil(float(ndata)/self.batch_size))
+        features = numpy.zeros((ndata,)+self.layers[self.ae_name_index_dic[feature_layer_name]].getOutputShape()[1:], 
+                                 dtype='float32')
+        
+        for i in xrange(nbatches):
+            batch_start = i*self.batch_size
+            batch_end = (i+1)*self.batch_size
+            if batch_end > ndata:
+                batch_end = ndata
+                batch_start = batch_end-self.batch_size
+            
+            crt_data = data[batch_start:batch_end]
+            
+            for j in xrange(niter):
+                if j == 0:
+                    p = extract_feature(crt_data)
+                else:
+                    p += extract_feature(crt_data)
+            
+            features[batch_start:batch_end] = p/float(niter)
+        
+        
+        if trim_pred:
+            features = features[:true_ndata]
+            
+        return features
+    
+    
+    def extract_feature_from_data_provider(self, data_provider, feature_layer_name, 
+                                           train_mean=None, batch_mean_subtraction=False, 
+                                           niter=1, noiseless=False):
+        assert isinstance(data_provider, UnlabeledDataProvider), (
+               'data_provider need to be a subclass from UnlabeledDataProvider'
+               ' so that it provides appropriate data for unsupervised models')
+        
+        assert feature_layer_name in self.ae_name_index_dic, ('need to provide feature_layer_name '
+                                                           'that is in the current network structure')
+        
+        layer_outputs = self.network_fprop(self.enc_layers, self.x, isTest=True, noiseless=noiseless)
+        h_given_x = layer_outputs[feature_layer_name]
+
+        
+        self.shared_train, _, _ = data_provider.get_train_data_and_idx(0)
+        start_index, end_index = T.iscalars('s_i', 'e_i')
+        xgiven = self.shared_train[start_index:end_index]
+        if self.shared_train.dtype=='uint8':
+            xgiven = T.cast(xgiven, dtype='float32')
+        
+        if train_mean is not None and batch_mean_subtraction:
+            tm = theano.shared(numpy.asarray(train_mean, dtype='float32'))
+            xgiven -= tm
+            
+        extract_feature = theano.function([start_index, end_index], 
+                                         h_given_x,
+                                         givens={self.x:xgiven})
+        
+        ndata = data_provider.get_number_of_train_data()
+        
+        features = numpy.zeros((ndata,)+self.layers[self.ae_name_index_dic[feature_layer_name]].getOutputShape()[1:], 
+                                 dtype='float32')
+        
+        for minibatch_idx in xrange(data_provider.get_number_of_train_batches()):
+            self.shared_train, s_i, e_i = data_provider.get_train_data_and_idx(minibatch_idx)
+            pred_start = minibatch_idx*self.batch_size
+            pred_end = (minibatch_idx+1)*self.batch_size
+            if pred_end > ndata:
+                pred_start = ndata-self.batch_size
+                pred_end = ndata
+            
+            for j in xrange(niter):
+                if j == 0:
+                    p = extract_feature(s_i, e_i)
+                else:
+                    p += extract_feature(s_i, e_i)
+                    
+            features[pred_start:pred_end] = p/float(niter)
+            
+        return features
+    
+    def reconstruct_from_memory_data(self, data, steps=1, noiseless=True):
+        assert len(data.shape) == 2, ('data should be passed in as a matrix, '
+                                      'where each row represent one example')
+        assert ((steps==1) == noiseless), (
+                'need noise to simulate generalized deonising autoencoder, '
+                'for noiseless case there is no need to taking multiple steps '
+                'in reconstruction')
+        
+        ndata = data.shape[0]
+        trim_pred = False
+        if ndata < self.batch_size:
+            trim_pred = True
+            true_ndata = ndata
+            # pad the rest with zeros
+            data = numpy.vstack((data, numpy.zeros((self.batch_size-ndata, data.shape[1]), dtype=data.dtype)))
+            ndata = self.batch_size
+        
+        enc_outputs = self.network_fprop(self.enc_layers, self.x, isTest=True, noiseless=noiseless)
+        dec_outputs = self.network_fprop(self.dec_layers, enc_outputs[self.encoder_ns[-1]['name']], isTest=True, noiseless=noiseless)
+         
+        # the reconstruction is always the last layer of the network
+        x_hat_given_x = dec_outputs[self.decoder_ns[-1]['name']]
+         
+        reconstruct = theano.function([self.x], x_hat_given_x)
+        
+        
+        nbatches = int(ceil(float(ndata)/self.batch_size))
+        recs = numpy.zeros(data.shape, dtype='float32')
+        
+        for i in xrange(nbatches):
+            batch_start = i*self.batch_size
+            batch_end = (i+1)*self.batch_size
+            if batch_end > ndata:
+                batch_end = ndata
+                batch_start = batch_end-self.batch_size
+            
+            crt_data = data[batch_start:batch_end]
+            
+            for j in xrange(steps): # 
+                if j == 0:
+                    p = reconstruct(crt_data)
+                else:
+                    p = reconstruct(p)
+                p = p.reshape((self.batch_size, -1))
+            recs[batch_start:batch_end] = p.reshape((self.batch_size,-1))
+        
+        
+        if trim_pred:
+            recs = recs[:true_ndata]
+            
+        return recs
+    
+    def reconstruct_from_data_provider(self, data_provider, train_mean=None, 
+                                       batch_mean_subtraction=False, steps=1, noiseless=True):
+        assert isinstance(data_provider, UnlabeledDataProvider), (
+               'data_provider need to be a subclass from UnlabeledDataProvider'
+               ' so that it provides appropriate data for unsupervised models')
+        
+        assert ((steps==1) == noiseless), (
+                'need noise to simulate generalized deonising autoencoder, '
+                'for noiseless case there is no need to taking multiple steps '
+                'in reconstruction')
+        
+        enc_outputs = self.network_fprop(self.enc_layers, self.x, isTest=True, noiseless=noiseless)
+        dec_outputs = self.network_fprop(self.dec_layers, enc_outputs[self.encoder_ns[-1]['name']], isTest=True, noiseless=noiseless)
+         
+        # the reconstruction is always the last layer of the network
+        x_hat_given_x = dec_outputs[self.decoder_ns[-1]['name']]
+
+        self.shared_train, _, _ = data_provider.get_train_data_and_idx(0)
+        start_index, end_index = T.iscalars('s_i', 'e_i')
+        xgiven = self.shared_train[start_index:end_index]
+        if self.shared_train.dtype=='uint8':
+            xgiven = T.cast(xgiven, dtype='float32')
+        
+        if train_mean is not None and batch_mean_subtraction:
+            tm = theano.shared(numpy.asarray(train_mean, dtype='float32'))
+            xgiven -= tm
+            
+        reconstruct_dp = theano.function([start_index, end_index], 
+                                         x_hat_given_x,
+                                         givens={self.x:xgiven})
+        
+        reconstruct_mem = theano.function([self.x], x_hat_given_x)
+        
+        ndata = data_provider.get_number_of_train_data()
+        
+        recs = numpy.zeros((ndata, self.shared_train.get_value().shape[1]), 
+                                 dtype='float32')
+        
+        for minibatch_idx in xrange(data_provider.get_number_of_train_batches()):
+            self.shared_train, s_i, e_i = data_provider.get_train_data_and_idx(minibatch_idx)
+            pred_start = minibatch_idx*self.batch_size
+            pred_end = (minibatch_idx+1)*self.batch_size
+            if pred_end > ndata:
+                pred_start = ndata-self.batch_size
+                pred_end = ndata
+            
+            for j in xrange(steps):
+                if j == 0:
+                    p = reconstruct_dp(s_i, e_i)
+                else:
+                    p = reconstruct_mem(p)
+                    
+            recs[pred_start:pred_end] = p
+            
+        return recs
     
     def fit(self, data_provider, train_epoch, optimizer,data_target_name,
             display_func=None, display_freq=-1, show_iteration=-1,
@@ -354,9 +581,9 @@ class EncDecAN(AutoEncoder):
         start_time = time.clock()
         
         train_data_dis_model = True
-        
+        data_dis_iter = 0
         while (epoch < train_epoch):
-            
+            epoch_start = iter_start = time.clock()
             
             epoch = epoch + 1
             data_gen_cost = []
@@ -364,32 +591,46 @@ class EncDecAN(AutoEncoder):
             prior_gen_cost = []
             prior_dis_cost = []
             ae_cost = []
-            data_dis_iter = 0
+            
             for minibatch_index in xrange(n_train_batches):
-                iter_start = time.clock() 
+                it = (epoch - 1) * n_train_batches + minibatch_index
+                
                 (self.shared_train, batch_start_idx, batch_end_idx) = \
                     data_provider.get_train_data_and_idx(minibatch_index)
                 
+                
+
                 train_data_dis_model = True
-                minibatch_data_dis_cost = self.get_data_dis_cost(batch_start_idx, batch_end_idx)
-                data_dis_cost.append(minibatch_data_dis_cost)
-                if minibatch_data_dis_cost < 0.6:
-                    train_data_dis_model = False
+#                 z = self.noise_func(self.batch_size, self.num_z)
+#                 minibatch_data_dis_cost = self.get_data_dis_cost(batch_start_idx, batch_end_idx,z)
+#                 data_dis_cost.append(minibatch_data_dis_cost)
+#                 if minibatch_data_dis_cost < 0.6:
+#                     train_data_dis_model = False
                 
-                if train_data_dis_model:
-                    data_dis_iter += 1
-                    self.train_data_dis_model(batch_start_idx, batch_end_idx)
-                
+                #if it % 2 == 1 and train_data_dis_model:
+                data_dis_iter += 1
+#                 if it%2 != 0:
+                z = self.noise_func(self.batch_size, self.num_z)
+                data_dis_cost.append(self.train_data_dis_model(batch_start_idx, batch_end_idx, z))
+            
                 z = self.noise_func(self.batch_size, self.num_z)
                 prior_dis_cost.append(self.train_prior_dis_model(batch_start_idx, batch_end_idx, z))
                 
-                rec_cost, gen_cost = self.train_ae_model(batch_start_idx, batch_end_idx)
-                ae_cost.append(rec_cost)
+                #if it %2 == 0:
+#                     rec_cost, gen_cost = self.train_ae_model(batch_start_idx, batch_end_idx)
+#                     ae_cost.append(rec_cost)
+                z = self.noise_func(self.batch_size, self.num_z)
+                gen_cost = self.train_data_gen_model(z)
+#                 gen_cost = self.train_data_gen_model(batch_start_idx, batch_end_idx)
                 data_gen_cost.append(gen_cost)
-                
+            
                 prior_gen_cost.append(self.train_prior_gen_model(batch_start_idx, batch_end_idx))
-                
-                it = (epoch - 1) * n_train_batches + minibatch_index
+            
+#                 else:
+                for _ in xrange(1):
+                    rec_cost = self.train_ae_model(batch_start_idx, batch_end_idx)
+                ae_cost.append(rec_cost)
+
                     
                 if it != 0 and dump_freq>0 and it % dump_freq==0:
                     self.dump()
@@ -397,9 +638,10 @@ class EncDecAN(AutoEncoder):
                 if display_freq > 0 and display_func is not None and it%display_freq == 0:
                     image = display_func(self.sample(self.batch_size))
                     imsave('%d_gen_image.jpg' % it, image)
+                    print 'finished writing sample image'
             
-                if ( it != 0 and (show_iteration > 0 and it % show_iteration==0) 
-                    or (show_iteration<0 and it % n_train_batches==0)):
+                if ( it != 0 and (show_iteration > 0 and (it+1) % show_iteration==0) 
+                    or (show_iteration<0 and (it+1) % n_train_batches==0)):
                     print ('Epoch %d, Iter: %d, Data-D Train Iter: %d\nAE cost: %.4f, Data-G cost: %.4f, Data-D cost: %.4f, '
                            'Prior-G cost: %.4f, Prior-D cost: %.4f' % 
                            (epoch, it, data_dis_iter, numpy.mean(ae_cost), 
@@ -412,12 +654,13 @@ class EncDecAN(AutoEncoder):
                     prior_dis_cost = []
                     ae_cost = []
                     print ', time cost: %.4f' % (time.clock() - iter_start)
+                    iter_start = time.clock()
             
                 if self.nvalid_batches <= 0: # in case of no validation
                     self.copyParamsToBest()
     
                 
-            
+            print 'Epoch time cost: %.4f' % (time.clock() - epoch_start)
             
         end_time = time.clock()
         self.dump()
