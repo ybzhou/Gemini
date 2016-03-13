@@ -20,7 +20,7 @@ class ConvLayer(Layer):
     
     def constructLayer(self, inputShape, initParams, name, batch_size, w_init, 
                        channels, filter_size, strid_size=1, pad=0, b_init=0, 
-                       act_func=None, lr_scheduler=None, W_expr=None, ignore_bias=False, 
+                       act_func=None, lr_scheduler=None, weigth_outside=None, ignore_bias=False, 
                        algo='small',
                        **layerSpecs):
         self.layerName = name
@@ -32,6 +32,7 @@ class ConvLayer(Layer):
         self.actFunc = act_func
         self.ignore_bias = ignore_bias
         self.algo = algo
+        self.weigth_outside = weigth_outside
         self.params.setLearningRateScheduler(lr_scheduler)
         
         nFilters = channels
@@ -78,8 +79,8 @@ class ConvLayer(Layer):
     
         
         
-        if W_expr is not None:
-            W_expr = W_expr
+        if weigth_outside is not None:
+            W_expr = weigth_outside[0]
         else:
             if W_values is None:
                 W_values = self.wInit.init(numpy.prod(self.filterShape[1:]), self.filterShape[0], 
@@ -114,9 +115,14 @@ class ConvLayer(Layer):
     
     def fprop(self, x):
         # convolve input feature maps with filters
+        if self.weigth_outside is None or self.weigth_outside[1]==False:
+            W = self.params.getParameter('W')
+        else:
+            W = self.params.getParameter('W').dimshuffle(1,0,2,3)
+            
         conv_out = cuDNN.dnn_conv(
                     img=x, 
-                    kerns=self.params.getParameter('W'), 
+                    kerns=W, 
                     border_mode=(self.nPad, self.nPad),
                     subsample=(self.strideSize, self.strideSize),
                     algo=self.algo)

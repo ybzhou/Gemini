@@ -124,14 +124,14 @@ class EncDecAN(AutoEncoder):
                                 )
         
         self.train_data_gen_model = theano.function(
-                [self.z], #[start_index, end_index],#
+                [start_index, end_index],#[self.z], #
                 data_gen_show_cost,
                 updates=data_gen_updates,
-#                 givens={self.x:given_train_x}
+                givens={self.x:given_train_x}
                 )
         
         self.train_data_dis_model = theano.function(
-                [start_index, end_index, self.z], #
+                [start_index, end_index], #, self.z
                 data_dis_show_cost,
                 updates=data_dis_updates,
                 givens={self.x:given_train_x}
@@ -200,7 +200,7 @@ class EncDecAN(AutoEncoder):
         # decoding
         
         decoder_outputs = self.network_fprop(network_layers=self.dec_layers, 
-                                             x= self.z, # fake_prior, # 
+                                             x= fake_prior,  # self.z, # 
                                              isTest=isTest, 
                                              noiseless=noiseless)
         
@@ -533,7 +533,7 @@ class EncDecAN(AutoEncoder):
                ' so that it provides appropriate data for unsupervised models')
         self.data_target_name = data_target_name
         self.data_provider = data_provider
-        self.nvalid_batches = data_provider.get_number_of_valid_batches()
+        self.nvalid_batches = 0#data_provider.get_number_of_valid_batches()
         self.shared_train, _, _ = data_provider.get_train_data_and_idx(0)
         self.batch_data_process_func = batch_data_process_func
         
@@ -569,7 +569,6 @@ class EncDecAN(AutoEncoder):
                     self.best_param_values[l.layerName][pn] = copy.deepcopy(l.params.getParameterValue(pn))
 
         n_train_batches = data_provider.get_number_of_train_batches()
-        n_valid_batches = data_provider.get_number_of_valid_batches()
 
         if valid_freq is not None:
             assert valid_freq > 0, 'valid_freq need to be an integer greater than 0'
@@ -610,8 +609,8 @@ class EncDecAN(AutoEncoder):
                 #if it % 2 == 1 and train_data_dis_model:
                 data_dis_iter += 1
 #                 if it%2 != 0:
-                z = self.noise_func(self.batch_size, self.num_z)
-                data_dis_cost.append(self.train_data_dis_model(batch_start_idx, batch_end_idx, z))
+#                 z = self.noise_func(self.batch_size, self.num_z)
+                data_dis_cost.append(self.train_data_dis_model(batch_start_idx, batch_end_idx))
             
                 z = self.noise_func(self.batch_size, self.num_z)
                 prior_dis_cost.append(self.train_prior_dis_model(batch_start_idx, batch_end_idx, z))
@@ -619,9 +618,9 @@ class EncDecAN(AutoEncoder):
                 #if it %2 == 0:
 #                     rec_cost, gen_cost = self.train_ae_model(batch_start_idx, batch_end_idx)
 #                     ae_cost.append(rec_cost)
-                z = self.noise_func(self.batch_size, self.num_z)
-                gen_cost = self.train_data_gen_model(z)
-#                 gen_cost = self.train_data_gen_model(batch_start_idx, batch_end_idx)
+#                 z = self.noise_func(self.batch_size, self.num_z)
+#                 gen_cost = self.train_data_gen_model(z)
+                gen_cost = self.train_data_gen_model(batch_start_idx, batch_end_idx)
                 data_gen_cost.append(gen_cost)
             
                 prior_gen_cost.append(self.train_prior_gen_model(batch_start_idx, batch_end_idx))

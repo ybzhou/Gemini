@@ -5,6 +5,7 @@ import warnings
 import inspect
 import sys
 import PIL.Image
+import theano
 
 import theano.tensor as T
 
@@ -247,17 +248,19 @@ def obtain_network(batch_size,
                 "cross layer weight sharing only support feed-forward layers"
             layername, transpose = crtLayerSpec['share_weight_from_other_layer']
             
-            W_expr = network_layers[name_index_dic[layername]].params.getParameter('W')
-            if transpose:
-                if W_expr.ndim ==  2:
-                    W_expr = W_expr.T
-                elif W_expr.ndim == 4:
-                    W_expr = W_expr.dimshuffle(1,0,2,3)
-                else:
-                    raise 'weight should either be a tensor or a matrix'
+#             W_expr = network_layers[name_index_dic[layername]].params.getParameter('W')
+            W_expr = theano.clone(network_layers[name_index_dic[layername]].params.getParameter('W'),
+                                  share_inputs=False)
+#             if transpose:
+#                 if W_expr.ndim ==  2:
+#                     W_expr = W_expr.T
+#                 elif W_expr.ndim == 4:
+#                     W_expr = W_expr.dimshuffle(1,0,2,3)
+#                 else:
+#                     raise 'weight should either be a tensor or a matrix'
             network_layers[layer_idx].constructLayer(inputShape=inputSize, 
                                                      initParams=None, 
-                                                     W_expr=W_expr,
+                                                     weight_outside=(W_expr, transpose),
                                                      **crtLayerSpec)
         else:
             network_layers[layer_idx].constructLayer(inputShape=inputSize, 

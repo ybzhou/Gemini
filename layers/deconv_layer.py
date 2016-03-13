@@ -22,7 +22,7 @@ class DeConvLayer(Layer):
                        channels, filter_size, 
                        strid_size=1, pad=0, b_init=0, act_func=None, 
                        lr_scheduler=None, algo='small',
-                       W_expr=None, **layerSpecs):
+                       weight_outside=None, **layerSpecs):
         self.layerName = name
         self.batchSize = batch_size
         self.strideSize = strid_size
@@ -31,6 +31,7 @@ class DeConvLayer(Layer):
         self.bInit = b_init
         self.actFunc = act_func
         self.algo = algo
+        self.weight_outside = weight_outside
         self.params.setLearningRateScheduler(lr_scheduler)
         
         nFilters = channels
@@ -80,8 +81,8 @@ class DeConvLayer(Layer):
     
         
         
-        if W_expr is not None:
-            W_expr = W_expr
+        if weight_outside is not None:
+            W_expr = weight_outside[0]
         else:
             if W_values is None:
                 W_values = self.wInit.init(numpy.prod(self.filterShape[1:]), self.filterShape[0], 
@@ -116,13 +117,18 @@ class DeConvLayer(Layer):
                     subsample=(self.strideSize, self.strideSize),
                   )(dummy_v.shape, self.params.getParameter('W').shape)
         
+        if self.weight_outside is None or self.weight_outside[1]==False:
+            W = self.params.getParameter('W')
+        else:
+            W = self.params.getParameter('W').dimshuffle(1,0,2,3)
+        
         z_hs = cuDNN.dnn_conv(
-                img = dummy_v,
-                kerns = self.params.getParameter('W'),
-                border_mode=(self.nPad, self.nPad),
-                subsample=(self.strideSize, self.strideSize),
-                algo = self.algo
-            )
+                    img = dummy_v,
+                    kerns = W,
+                    border_mode=(self.nPad, self.nPad),
+                    subsample=(self.strideSize, self.strideSize),
+                    algo = self.algo
+                )
         # this is the real direction for deconv, which is just the opposite of
         # the true convolution
         conv_out = z_hs.owner.op.grad(

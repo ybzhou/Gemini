@@ -20,7 +20,7 @@ class FullLayer(Layer):
         self.layerType='full'
 
     def constructLayer(self, inputShape, initParams, name, w_init, hiddens, 
-                       b_init=0, act_func=None, lr_scheduler=None, W_expr=None,
+                       b_init=0, act_func=None, lr_scheduler=None, weights_outside=None,
                        ignore_bias=False,
                        **layerSpecs):
         self.layerName = name
@@ -29,6 +29,7 @@ class FullLayer(Layer):
         self.actFunc = act_func
         self.ignore_bias = ignore_bias
         self.params.setLearningRateScheduler(lr_scheduler)
+        self.weights_outside = weights_outside
         
         nHiddenSize = hiddens
         
@@ -68,8 +69,8 @@ class FullLayer(Layer):
         
         
         
-        if W_expr is not None:
-            W_expr = W_expr
+        if weights_outside is not None:
+            W_expr = weights_outside[0]
         else:
             if W_values is None:
                 W_values = self.wInit.init(self.inputShape[-1], self.outputShape[-1])
@@ -98,11 +99,15 @@ class FullLayer(Layer):
         if x.ndim > 2:
             x = x.flatten(2)
         
-        if self.ignore_bias:
-            pre_act = T.dot(x, self.params.getParameter('W'))
+        if self.weights_outside is None or self.weights_outside[1]==False:
+            W = self.params.getParameter('W')
         else:
-            pre_act = T.dot(x, self.params.getParameter('W')) + self.params.getParameter('b')
-            
+            W = self.params.getParameter('W').T
+        
+        if self.ignore_bias:
+            pre_act = T.dot(x, W)
+        else:
+            pre_act = T.dot(x, W) + self.params.getParameter('b')
         output = pre_act if self.actFunc is None else self.actFunc(pre_act)
         return output
     
