@@ -39,9 +39,9 @@ class MLP(SupervisedModel):
         
         self.x = T.matrix('x')
         if self.label_dims == 2:
-            self.y = T.imatrix('y')
+            self.y = T.matrix('y')
         elif self.label_dims == 1:
-            self.y = T.ivector('y')
+            self.y = T.vector('y')
         elif self.label_dims == 4:
             self.y = T.tensor4('y')
         else:

@@ -19,13 +19,13 @@ class SoftmaxCost(Cost):
     def getCost(self, target, predict):
         """Assumes the targetLayer output be a integer vector, starting from 0"""
         assert target.ndim == 1, "targetLayer need to output a vector but got %d dimensions" % target.ndim
-        cost = -T.mean(T.log(predict[T.arange(target.shape[0]), target]))
+        cost = -T.mean(T.log(predict[T.arange(target.shape[0]), T.cast(target, 'int32')]))
         return cost
 
 class CrossEntrypyCost(Cost):
     def getCost(self, target, predict):
         assert target.ndim == 1, "targetLayer need to output a vector but got %d dimensions" % target.ndim
-        cost = T.mean(-predict[:, target] + T.log(T.sum(T.exp(predict), axis=1)))
+        cost = T.mean(-predict[:, T.cast(target, 'int32')] + T.log(T.sum(T.exp(predict), axis=1)))
         return cost
     
 class BinaryCrossEntropyCost(Cost):
