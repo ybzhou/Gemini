@@ -1,13 +1,12 @@
 from data_provider import UnlabeledDataProvider
 
-import hickle
 import numpy
-import theano
-import warnings
+# import theano
 from data_loader import DataLoader
 
 from math import ceil
 
+import libwrapper as LW
 
 __all__ = ['UnlabeledDataProvider']
 
@@ -16,7 +15,6 @@ class UnlabeledMemoryDataProvider(UnlabeledDataProvider):
     '''
        LabeledMemoryDataProvider assumes the full data can fit in the memory of the
        current computer, it is best suited for small to medium sized datasets.
-       The data is required to be saved in a hickle file.
        Loading dataset that cannot fit into the memory may cause memory
        error.
     '''
@@ -72,16 +70,14 @@ class UnlabeledMemoryDataProvider(UnlabeledDataProvider):
         if max_gpu_valid_samples > nvalid_samples:
             max_gpu_valid_samples = nvalid_samples
         
-        self.shared_train_data = theano.shared(numpy.zeros((max_gpu_train_samples, 
+        self.shared_train_data = LW.data_variable(value=numpy.zeros((max_gpu_train_samples, 
                                                             data.shape[1]), 
-                                                           dtype=data.dtype),
-                                                       borrow=True)
+                                                           dtype=data.dtype))
         
         if not is_test:
-            self.shared_valid_data =  theano.shared(numpy.zeros((max_gpu_valid_samples, 
+            self.shared_valid_data =  LW.data_variable(value=numpy.zeros((max_gpu_valid_samples, 
                                                                     data.shape[1]), 
-                                                                   dtype=data.dtype),
-                                                            borrow=True)
+                                                                   dtype=data.dtype))
 
             
         self.ntrain_data = self.train_data.shape[0]
