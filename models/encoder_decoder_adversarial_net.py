@@ -110,28 +110,28 @@ class EncDecAN(AutoEncoder):
         if self.batch_data_process_func is not None:
             given_train_x = self.batch_data_process_func(given_train_x)
         
-#         self.get_data_dis_cost = theano.function(
-#                               [start_index, end_index, self.z], #
-#                               data_dis_show_cost,
-#                               givens={self.x:given_train_x}
-#                               )
+        self.get_data_dis_cost = theano.function(
+                              [start_index, end_index, self.z], #
+                              data_dis_show_cost,
+                              givens={self.x:given_train_x}
+                              )
          
         self.train_ae_model = theano.function(
-                              [start_index, end_index],
+                              [self.z], # [start_index, end_index], # 
                               rec_show_cost,
                               updates=ae_updates,
-                              givens={self.x:given_train_x}
+#                             givens={self.x:given_train_x}
                                 )
         
         self.train_data_gen_model = theano.function(
-                [start_index, end_index],#[self.z], #
+                [self.z], #[start_index, end_index],#
                 data_gen_show_cost,
                 updates=data_gen_updates,
-                givens={self.x:given_train_x}
+#                 givens={self.x:given_train_x}
                 )
         
         self.train_data_dis_model = theano.function(
-                [start_index, end_index], #, self.z
+                [start_index, end_index, self.z], #
                 data_dis_show_cost,
                 updates=data_dis_updates,
                 givens={self.x:given_train_x}
@@ -200,7 +200,7 @@ class EncDecAN(AutoEncoder):
         # decoding
         
         decoder_outputs = self.network_fprop(network_layers=self.dec_layers, 
-                                             x= fake_prior,  # self.z, # 
+                                             x= self.z, # fake_prior,  # 
                                              isTest=isTest, 
                                              noiseless=noiseless)
         
@@ -246,14 +246,21 @@ class EncDecAN(AutoEncoder):
             
         #-----------------------------------------------------------------------
         # reconstruction cost
+        enc_out = self.network_fprop(network_layers=self.enc_layers, 
+                                                    x=dis_fake_data,
+                                                    isTest=isTest, 
+                                                    noiseless=noiseless)
+#         
+#         rec_obj = self.cost_func.getCost(self.z,
+#                                          reconstruction_outputs[self.encoder_ns[-1]['name']])
         reconstruction_outputs = self.network_fprop(network_layers=self.dec_layers, 
-                                             x=fake_prior, 
+                                             x=enc_out[self.encoder_ns[-1]['name']], #fake_prior, 
                                              isTest=isTest, 
                                              noiseless=noiseless)
-         
+          
         rec_out = reconstruction_outputs[self.decoder_ns[-1]['name']]
- 
-        rec_obj = self.cost_func.getCost(encoder_outputs[self.data_target_name], 
+  
+        rec_obj = self.cost_func.getCost(dis_fake_data, #encoder_outputs[self.data_target_name], 
                                       rec_out)
         rec_reg = 0
         for layer in self.enc_layers+self.dec_layers:
@@ -599,9 +606,9 @@ class EncDecAN(AutoEncoder):
                 
                 
 
-                train_data_dis_model = True
-#                 z = self.noise_func(self.batch_size, self.num_z)
-#                 minibatch_data_dis_cost = self.get_data_dis_cost(batch_start_idx, batch_end_idx,z)
+#                 train_data_dis_model = True
+# #                 z = self.noise_func(self.batch_size, self.num_z)
+#                 minibatch_data_dis_cost = self.get_data_dis_cost(batch_start_idx, batch_end_idx)
 #                 data_dis_cost.append(minibatch_data_dis_cost)
 #                 if minibatch_data_dis_cost < 0.6:
 #                     train_data_dis_model = False
@@ -609,8 +616,10 @@ class EncDecAN(AutoEncoder):
                 #if it % 2 == 1 and train_data_dis_model:
                 data_dis_iter += 1
 #                 if it%2 != 0:
-#                 z = self.noise_func(self.batch_size, self.num_z)
-                data_dis_cost.append(self.train_data_dis_model(batch_start_idx, batch_end_idx))
+                z = self.noise_func(self.batch_size, self.num_z)
+#                 if train_data_dis_model:
+#                     self.train_data_dis_model(batch_start_idx, batch_end_idx)
+                data_dis_cost.append(self.train_data_dis_model(batch_start_idx, batch_end_idx, z))
             
                 z = self.noise_func(self.batch_size, self.num_z)
                 prior_dis_cost.append(self.train_prior_dis_model(batch_start_idx, batch_end_idx, z))
@@ -618,16 +627,16 @@ class EncDecAN(AutoEncoder):
                 #if it %2 == 0:
 #                     rec_cost, gen_cost = self.train_ae_model(batch_start_idx, batch_end_idx)
 #                     ae_cost.append(rec_cost)
-#                 z = self.noise_func(self.batch_size, self.num_z)
-#                 gen_cost = self.train_data_gen_model(z)
-                gen_cost = self.train_data_gen_model(batch_start_idx, batch_end_idx)
+                z = self.noise_func(self.batch_size, self.num_z)
+                gen_cost = self.train_data_gen_model(z)
+#                 gen_cost = self.train_data_gen_model(batch_start_idx, batch_end_idx)
                 data_gen_cost.append(gen_cost)
             
                 prior_gen_cost.append(self.train_prior_gen_model(batch_start_idx, batch_end_idx))
             
 #                 else:
                 for _ in xrange(1):
-                    rec_cost = self.train_ae_model(batch_start_idx, batch_end_idx)
+                    rec_cost = self.train_ae_model(z)
                 ae_cost.append(rec_cost)
 
                     

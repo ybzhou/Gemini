@@ -1,8 +1,9 @@
 import warnings
-import theano
+# import theano
 import numpy
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 from layer import Layer
 from utils.model.layer_utils import setupDefaultLayerOptions
@@ -87,19 +88,19 @@ class NormFullLayer(Layer):
         if gamma_values is None:
             gamma_values = numpy.ones((self.outputShape[1],), dtype='float32')
             
-        gamma_expr = theano.shared(gamma_values, name='gamma')
+        gamma_expr = LW.data_variable(value=gamma_values, name='gamma')
         
         if W_expr is not None:
             W_expr = W_expr
         else:
             if W_values is None:
                 W_values = self.wInit.init(self.inputShape[-1], self.outputShape[-1])
-            W_expr = theano.shared(name='W', value=W_values, borrow=True)
+            W_expr = LW.data_variable(name='W', value=W_values)
         
         if b_values is None:
             b_values = self.bInit*numpy.ones((self.outputShape[-1],), dtype='float32')
             
-        b_expr = theano.shared(name='b', value=b_values, borrow=True)
+        b_expr = LW.data_variable(name='b', value=b_values)
         
 #         beta_expr = theano.shared(name='beta', value=numpy.ones(self.outputShape[-1], dtype='float32'))
         
@@ -118,8 +119,8 @@ class NormFullLayer(Layer):
         W = self.params.getParameter('W')
         gamma = self.params.getParameter('gamma')
         b = self.params.getParameter('b')
-        W_non_center_std = T.sqrt(T.sum(T.sqr(W), axis=0))*numpy.float32(1.21)
-        pre_act = gamma*T.dot(x, W) / W_non_center_std + b
+        W_non_center_std = LW.sqrt(LW.sum(LW.square(W), axis=0))*numpy.float32(1.21)
+        pre_act = gamma*LW.dot(x, W) / W_non_center_std + b
         output = self.actFunc(pre_act) if self.actFunc is not None else pre_act
         if self.post_act_normalize:
             output = (output-_sub_const)/numpy.float32(numpy.sqrt(0.5-0.5/numpy.pi))

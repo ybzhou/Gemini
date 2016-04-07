@@ -1,5 +1,5 @@
-import theano.tensor as T
-
+# import theano.tensor as T
+import libwrapper as LW
 from layer import Layer
 
 __all__ = ["ConcateLayer"]
@@ -29,7 +29,7 @@ class ConcateLayer(Layer):
         self.outputShape = tuple(self.outputShape)
     
     def fprop(self, x):
-        concatenated = T.concatenate(x, axis=1)
+        concatenated = LW.concatenate(x, axis=1)
         return concatenated
     
 # End Concatelayer

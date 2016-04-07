@@ -1,11 +1,6 @@
-import warnings
-import theano
-import numpy
-
-import theano.tensor as T
-
 from layer import Layer
-from utils.model.layer_utils import setupDefaultLayerOptions
+
+import libwrapper as LW
 
 __all__ = ["BatchStandardizeLayer"]
 
@@ -29,8 +24,8 @@ class BatchStandardizeLayer(Layer):
         ret = x
         if not isTest:
             norm_axis = (1,)+tuple(range(2,len(self.inputShape)))
-            x_avg = T.mean(x, axis=norm_axis, keepdims=True)
-            x_std = T.std(x, axis=norm_axis, keepdims=True)
+            x_avg = LW.mean(x, axis=norm_axis, keepdims=True)
+            x_std = LW.std(x, axis=norm_axis, keepdims=True)
             ret = (x-x_avg)/(x_std+1e-4)
             
         return ret

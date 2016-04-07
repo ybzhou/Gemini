@@ -1,8 +1,9 @@
 import warnings
-import theano
+# import theano
 import numpy
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 from layer import Layer
 from utils.model.layer_utils import setupDefaultLayerOptions
@@ -74,12 +75,12 @@ class FullLayer(Layer):
         else:
             if W_values is None:
                 W_values = self.wInit.init(self.inputShape[-1], self.outputShape[-1])
-            W_expr = theano.shared(name='W', value=W_values, borrow=True)
+            W_expr = LW.data_variable(name='W', value=W_values)
         
         if b_values is None:
             b_values = self.bInit*numpy.ones((self.outputShape[-1],), dtype='float32')
             
-        b_expr = theano.shared(name='b', value=b_values, borrow=True)
+        b_expr = LW.data_variable(name='b', value=b_values)
         
         if self.ignore_bias:
             if 'tune' in layerSpecs:
@@ -102,12 +103,12 @@ class FullLayer(Layer):
         if self.weights_outside is None or self.weights_outside[1]==False:
             W = self.params.getParameter('W')
         else:
-            W = self.params.getParameter('W').T
+            W = LW.transpose(self.params.getParameter('W'))
         
         if self.ignore_bias:
-            pre_act = T.dot(x, W)
+            pre_act = LW.dot(x, W)
         else:
-            pre_act = T.dot(x, W) + self.params.getParameter('b')
+            pre_act = LW.dot(x, W) + self.params.getParameter('b')
         output = pre_act if self.actFunc is None else self.actFunc(pre_act)
         return output
     

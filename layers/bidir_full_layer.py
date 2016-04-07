@@ -1,8 +1,9 @@
 import warnings
-import theano
+# import theano
 import numpy
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 from layer import BiDirLayer
 from utils.model.layer_utils import setupDefaultLayerOptions
@@ -98,24 +99,24 @@ class BidirFullLayer(BiDirLayer):
         if W_values is None:
             W_values = self.wInit.init(inputShape[-1], self.outputShape[-1])
  
-        W_expr = theano.shared(name='W', value=W_values, borrow=True)
+        W_expr = LW.data_variable(name='W', value=W_values)
         
         if self.tieWeights:
             W_prime_expr = W_expr.T
         else:
             if W_prime_values is None:
                 W_prime_values = self.wInit.init(self.outputShape[-1], inputShape[-1])
-            W_prime_expr = theano.shared(name='W_prime', value=W_prime_values, borrow=True)
+            W_prime_expr = LW.data_variable(name='W_prime', value=W_prime_values)
         
         if b_values is None:
             b_values = self.bHidInit*numpy.ones((self.outputShape[-1],), dtype='float32')
              
-        b_expr = theano.shared(name='b', value=b_values, borrow=True)
+        b_expr = LW.data_variable(name='b', value=b_values)
         
         if b_prime_values is None:
             b_prime_values = self.bVisInit*numpy.ones((inputShape[-1],), dtype='float32')
              
-        b_prime_expr = theano.shared(name='b_prime', value=b_prime_values, borrow=True)
+        b_prime_expr = LW.data_variable(name='b_prime', value=b_prime_values)
          
         tune, reg, constraint, lr, mu = setupDefaultLayerOptions(['W','W_prime','b', 'b_prime'], layerSpecs)
         
@@ -135,15 +136,15 @@ class BidirFullLayer(BiDirLayer):
     def fprop(self, x):
         if x.ndim > 2:
             x = x.flatten(2)
-        pre_act = T.dot(x, self.params.getParameter('W')) + self.params.getParameter('b')
+        pre_act = LW.dot(x, self.params.getParameter('W')) + self.params.getParameter('b')
         output = pre_act if self.forwardActFunc is None else self.forwardActFunc(pre_act)
         return output
      
     def bprop(self, x):
         if self.tieWeights:
-            pre_act = T.dot(x, self.params.getParameter('W').T) + self.params.getParameter('b_prime')
+            pre_act = LW.dot(x, self.params.getParameter('W').T) + self.params.getParameter('b_prime')
         else:
-            pre_act = T.dot(x, self.params.getParameter('W_prime')) + self.params.getParameter('b_prime')
+            pre_act = LW.dot(x, self.params.getParameter('W_prime')) + self.params.getParameter('b_prime')
         output = pre_act if self.backwardActFunc is None else self.backwardActFunc(pre_act)
         
         if len(self.inputShape) != 2:

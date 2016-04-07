@@ -1,8 +1,9 @@
 import warnings
-import theano
+# import theano
 import numpy
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 from layer import Layer
 from utils.model.layer_utils import setupDefaultLayerOptions
@@ -41,7 +42,7 @@ class BatchExpNormLayer(Layer):
         
         if x_avg_values is None:
             x_avg_values = numpy.zeros(inputShape[1], dtype='float32').reshape(param_shape)
-        x_avg_expr = theano.shared(x_avg_values, name='x_avg')
+        x_avg_expr = LW.data_variable(value=x_avg_values, name='x_avg')
         
         if initParams is not None:
             if ('beta' in initParams) and (initParams['beta'] is not None):
@@ -53,7 +54,7 @@ class BatchExpNormLayer(Layer):
         if beta_values is None:
             beta_values = numpy.ones(inputShape[1], dtype='float32').reshape(param_shape)
             
-        beta_expr = theano.shared(beta_values, name='beta')
+        beta_expr = LW.data_variable(value=beta_values, name='beta')
         
         self.inputShape = inputShape
         self.outputShape = self.inputShape
@@ -84,7 +85,7 @@ class BatchExpNormLayer(Layer):
             x_avg = x.mean(self.norm_axis, keepdims=True)
             
             # the following trick is learend from lasagne implementation
-            running_mean = theano.clone(self.params.getParameter('x_avg'), share_inputs=False)
+            running_mean = LW.clone(self.params.getParameter('x_avg'), share_inputs=False)
             
             running_mean_udpate = ((1 - self.alpha) * running_mean
                                     +self.alpha * x_avg)
@@ -98,8 +99,8 @@ class BatchExpNormLayer(Layer):
             raise "mode can only take ['train', 'test', 'calculate']"
         
         self.x_avg = x_avg
-        x_avg = T.addbroadcast(x_avg, *self.norm_axis)
-        beta = T.addbroadcast(self.params.getParameter('beta'), *self.norm_axis)
+        x_avg = LW.addbroadcast(x_avg, *self.norm_axis)
+        beta = LW.addbroadcast(self.params.getParameter('beta'), *self.norm_axis)
         
         bn_x = x / (x_avg + 1e-18) * beta
         return bn_x if self.actFunc is None else self.actFunc(bn_x)

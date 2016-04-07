@@ -1,4 +1,5 @@
 from layer import Layer
+import libwrapper as LW
 
 __all__ = ["ReshapeLayer"]
 #-------------------------------------------------------------------------------
@@ -16,7 +17,7 @@ class ReshapeLayer(Layer):
         self.actFunc = act_func
 
     def fprop(self, x):
-        return x.reshape(self.outputShape) if self.actFunc is None else self.actFunc(x.reshape(self.outputShape))
+        return LW.reshape(x, self.outputShape) if self.actFunc is None else self.actFunc(LW.reshape(x,self.outputShape))
     
 # End ReshapeLayer
 #-------------------------------------------------------------------------------
