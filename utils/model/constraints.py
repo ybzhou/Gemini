@@ -1,6 +1,7 @@
 import abc
 import warnings
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 class NormConstraint:
     def __init__(self, norm):
@@ -28,11 +29,11 @@ class MaxRowNormConstraint(NormConstraint):
             needFlip = True
         
         if needFlip:
-            col_norm = T.sqrt(T.sum(T.sqr(param), axis=0, keepdims=True))
+            col_norm = LW.sqrt(LW.sum(LW.square(param), axis=0, keepdims=True))
         else:
-            col_norm = T.sqrt(T.sum(T.sqr(param), axis=1, keepdims=True))
+            col_norm = LW.sqrt(LW.sum(LW.square(param), axis=1, keepdims=True))
             
-        scale = T.clip(col_norm, 0, self.norm)
+        scale = LW.clip(col_norm, 0, self.norm)
         param *= (scale / (1e-7 + col_norm))
         
         if needFlip:
@@ -58,11 +59,11 @@ class MaxColNormConstraint(NormConstraint):
             needFlip = True
         
         if needFlip:
-            col_norm = T.sqrt(T.sum(T.sqr(param), axis=1, keepdims=True))
+            col_norm = LW.sqrt(LW.sum(LW.square(param), axis=1, keepdims=True))
         else:
-            col_norm = T.sqrt(T.sum(T.sqr(param), axis=0, keepdims=True))
+            col_norm = LW.sqrt(LW.sum(LW.square(param), axis=0, keepdims=True))
             
-        scale = T.clip(col_norm, 0, self.norm)
+        scale = LW.clip(col_norm, 0, self.norm)
         param *= (scale / (1e-7 + col_norm))
         
         if needFlip:
@@ -88,9 +89,9 @@ class L2ColNormConstraint(NormConstraint):
             needFlip = True
         
         if needFlip:
-            col_norm = T.sqrt(T.sum(T.sqr(param), axis=1, keepdims=True))
+            col_norm = LW.sqrt(LW.sum(LW.square(param), axis=1, keepdims=True))
         else:
-            col_norm = T.sqrt(T.sum(T.sqr(param), axis=0, keepdims=True))
+            col_norm = LW.sqrt(LW.sum(LW.square(param), axis=0, keepdims=True))
             
         param /= (col_norm+1e-7)
         param *= self.norm

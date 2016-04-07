@@ -16,25 +16,21 @@ theano.config.floatX = FLOAT_TYPE
 
 # ------------------------------------------------------------------------------
 # rng
-
-def binomial_rng(size, n=1, p=0.0, dtype=FLOAT_TYPE, seed=None):
-    if seed is None:
-        seed = numpy.random.randint(2**30)
-    rng = mrg_rng.MRG_RandomStreams(seed=seed)
-    return rng.binomial(size=size, n=n, p=p, dtype=dtype)
-
-def normal_rng(size, avg=0.0, std=1.0, dtype=FLOAT_TYPE, seed=None):
-    if seed is None:
-        seed = numpy.random.randint(2**30)
-    rng = mrg_rng.MRG_RandomStreams(seed=seed)
-    return rng.normal(size=size, avg=mean, std=std, dtype=dtype)
-
-def uniform_rng(size, low=0.0, high=1.0, dtype=FLOAT_TYPE, seed=None):
-    if seed is None:
-        seed = numpy.random.randint(2**30)
-    rng = mrg_rng.MRG_RandomStreams(seed=seed)
-    return rng.uniform(size=size, low=low, high=high, dtype=dtype)
-
+class RNG(object):
+    def __init__(self, seed=None):
+        if seed is None:
+            seed = numpy.random.randint(2**30)
+        
+        self.rng = mrg_rng.MRG_RandomStreams(seed=seed)
+        
+    def binomial(self, size, n=1, p=0.0, dtype=FLOAT_TYPE):
+        return self.rng.binomial(size=size, n=n, p=p, dtype=dtype)
+    
+    def normal(self, size, avg=0.0, std=1.0, dtype=FLOAT_TYPE):
+        return self.rng.normal(size=size, avg=mean, std=std, dtype=dtype)
+    
+    def uniform(self, size, low=0.0, high=1.0, dtype=FLOAT_TYPE):
+        return self.rng.uniform(size=size, low=low, high=high, dtype=dtype)
 
 # ------------------------------------------------------------------------------
 # Variables
@@ -135,6 +131,9 @@ def clone(x, share_inputs=True):
 def addbroadcast(x, *axes):
     return T.addbroadcast(x, *axes)
 
+def arange(start, stop=None, step=1, dtype=None):
+    return T.arange(start, stop, step, dtype)
+
 # creating tensor
 
 def zeros_like(x):
@@ -182,6 +181,9 @@ def isinf(x):
 # condition
 def switch(cond, ift, iff):
     return T.switch(cond=cond, ift=ift, iff=iff)
+
+def ifelse(cond, then_branch, else_branch, name=None):
+    return theano.ifelse.ifelse(cond, then_branch, else_branch, name)
 
 def clip(x, a_min, a_max):
     return T.clip(x, a_min=a_min, a_max=a_max)

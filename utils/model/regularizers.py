@@ -1,5 +1,6 @@
 import abc
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 class Regularizer:
     __metaclass__ = abc.ABCMeta
@@ -18,8 +19,8 @@ class Regularizer:
     
 class L2Regularizer(Regularizer):
     def getRegularization(self, param):
-        return self.coef*T.sum(T.sqr(param))
+        return self.coef*LW.sum(LW.square(param))
     
 class L1Regularizer(Regularizer):
     def getRegularization(self, param):
-        return self.coef*T.sum(T.abs_(param))
+        return self.coef*LW.sum(LW.abs(param))

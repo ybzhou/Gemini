@@ -1,8 +1,9 @@
 import abc
-import theano
+# import theano
 import numpy
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 from collections import OrderedDict
 
@@ -42,7 +43,7 @@ class SGD_Optimizer(Optimizer):
                     lr = lr_scheduler.rate
                     
                 crtParam = param.getParameter(pn)
-                crtParamGrad = T.grad(cost, crtParam)
+                crtParamGrad = LW.grad(cost, crtParam)
                 updatedParam = crtParam - lr * crtParamGrad
                 updatedParam = param.applyParamConstraint(pn, updatedParam)
                 updates[crtParam] = updatedParam
@@ -80,7 +81,7 @@ class SGD_Momentum_Optimizer(Optimizer):
                 mu = param.getMomentum(pn)
                 
                 val = numpy.zeros(param.getParameter(pn).get_value().shape, dtype='float32')
-                momentum = theano.shared(val, borrow=True)
+                momentum = LW.data_variable(val)
                 
                 if lr_scheduler is not None:
                     updates.update(lr_scheduler.get_updates(lr))
@@ -90,7 +91,7 @@ class SGD_Momentum_Optimizer(Optimizer):
                     mu = mu_scheduler.rate
                     
                 crtParam = param.getParameter(pn)
-                crtParamGrad = T.grad(cost, crtParam)
+                crtParamGrad = LW.grad(cost, crtParam)
                 
                 delta = mu*momentum - lr*crtParamGrad
                 updatedParam = crtParam + delta
@@ -132,7 +133,7 @@ class SGD_Nesterov_Optimizer(Optimizer):
                 mu = param.getMomentum(pn)
                 
                 val = numpy.zeros(param.getParameter(pn).get_value().shape, dtype='float32')
-                momentum = theano.shared(val, borrow=True)
+                momentum = LW.data_variable(val)
                 
                 if lr_scheduler is not None:
                     updates.update(lr_scheduler.get_updates(lr))
@@ -142,7 +143,7 @@ class SGD_Nesterov_Optimizer(Optimizer):
                     mu = mu_scheduler.rate
                     
                 crtParam = param.getParameter(pn)
-                crtParamGrad = T.grad(cost, crtParam)
+                crtParamGrad = LW.grad(cost, crtParam)
                 
                 updated_vel = mu*momentum - lr*crtParamGrad
                 inc = mu*updated_vel - lr*crtParamGrad
@@ -184,16 +185,16 @@ class SGD_Rms_Optimizer(Optimizer):
                 
                 lr = param.getLearningRate(pn)
                 val = numpy.zeros(param.getParameter(pn).get_value().shape, dtype='float32')
-                r = theano.shared(val, borrow=True)
+                r = LW.data_variable(val)
                 if lr_scheduler is not None:
                     updates.update(lr_scheduler.get_updates(lr))
                     lr = lr_scheduler.rate
                     
                 crtParam = param.getParameter(pn)
-                crtParamGrad = T.grad(cost, crtParam)
+                crtParamGrad = LW.grad(cost, crtParam)
                 
-                updated_r = (1-self.gamma)*T.sqr(crtParamGrad) + self.gamma*r + 1e-6 
-                inc = - lr*crtParamGrad/T.sqrt(updated_r)
+                updated_r = (1-self.gamma)*LW.square(crtParamGrad) + self.gamma*r + 1e-6 
+                inc = - lr*crtParamGrad/LW.sqrt(updated_r)
                 
                 updatedParam = crtParam + inc
                 updatedParam = param.applyParamConstraint(pn, updatedParam)
@@ -220,7 +221,7 @@ class SGD_Adam_Optimizer(Optimizer):
         self.epsilon = epsilon
 
     def get_updates(self, cost, params):
-        t = theano.shared(numpy.asarray(0, dtype='float32'))
+        t = LW.data_variable(numpy.asarray(0, dtype='float32'))
         updated_t = t + 1
         
         updates = OrderedDict()
@@ -229,24 +230,24 @@ class SGD_Adam_Optimizer(Optimizer):
             tunableParamNames = param.getTunableParameternames()
             for pn in tunableParamNames:
                 crtParam = param.getParameter(pn)
-                crtParamGrad = T.grad(cost, crtParam)
+                crtParamGrad = LW.grad(cost, crtParam)
                 
                 param_shape = param.getParameter(pn).get_value().shape
-                m = theano.shared(numpy.zeros(param_shape, dtype='float32'), borrow=True)
-                v = theano.shared(numpy.zeros(param_shape, dtype='float32'), borrow=True)
+                m = LW.data_variable(numpy.zeros(param_shape, dtype='float32'))
+                v = LW.data_variable(numpy.zeros(param_shape, dtype='float32'))
                 
                 updated_m = self.beta1 * m + (1-self.beta1) * crtParamGrad
-                updated_v = self.beta2 * v + (1-self.beta2) * T.sqr(crtParamGrad)
+                updated_v = self.beta2 * v + (1-self.beta2) * LW.square(crtParamGrad)
                 
                 lr = param.getLearningRate(pn)
                 if lr_scheduler is not None:
                     updates.update(lr_scheduler.get_updates(lr))
                     lr = lr_scheduler.rate
                 
-                updated_lr = lr * T.sqrt(1-T.pow(self.beta2, updated_t))/(1-T.pow(self.beta1, updated_t))
+                updated_lr = lr * LW.sqrt(1-LW.pow(self.beta2, updated_t))/(1-LW.pow(self.beta1, updated_t))
                 
                 
-                inc = - updated_lr*updated_m/(T.sqrt(updated_v) + self.epsilon)
+                inc = - updated_lr*updated_m/(LW.sqrt(updated_v) + self.epsilon)
                 
                 updatedParam = crtParam + inc
                 updatedParam = param.applyParamConstraint(pn, updatedParam)

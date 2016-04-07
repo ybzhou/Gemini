@@ -1,7 +1,8 @@
 import abc
 import numpy
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 class Cost:
     __metaclass__ = abc.ABCMeta
@@ -19,30 +20,35 @@ class SoftmaxCost(Cost):
     def getCost(self, target, predict):
         """Assumes the targetLayer output be a integer vector, starting from 0"""
         assert target.ndim == 1, "targetLayer need to output a vector but got %d dimensions" % target.ndim
-        cost = -T.mean(T.log(predict[T.arange(target.shape[0]), T.cast(target, 'int32')]))
+        cost = -LW.mean(LW.log(predict[LW.arange(target.shape[0]), LW.cast(target, 'int32')]))
         return cost
 
 class CrossEntrypyCost(Cost):
     def getCost(self, target, predict):
         assert target.ndim == 1, "targetLayer need to output a vector but got %d dimensions" % target.ndim
-        cost = T.mean(-predict[:, T.cast(target, 'int32')] + T.log(T.sum(T.exp(predict), axis=1)))
+        cost = LW.mean(-predict[:, LW.cast(target, 'int32')] + LW.log(LW.sum(LW.exp(predict), axis=1)))
         return cost
     
 class BinaryCrossEntropyCost(Cost):
     """Binary cross entropy cost"""
     def getCost(self, target, predict):
-        return T.mean(T.sum(T.nnet.binary_crossentropy(predict, target), axis=1))
+        return LW.mean(LW.sum(LW.binary_cross_entropy(predict, target), axis=1))
 
 class SumOfSquaredCost(Cost):
     """Sum of squared cost"""
     def getCost(self, target, predict):
         naxis = predict.ndim
         sum_axis = numpy.arange(1, naxis)
-        return T.mean(T.sum(T.sqr(target-predict), axis=tuple(sum_axis)))
+        return LW.mean(LW.sum(TLW.square(target-predict), axis=tuple(sum_axis)))
     
 class MultiHingeCost(Cost):
+    
+    
     """Multi-class Hinge Loss"""
     def getCost(self, target, predict):
+        import theano.tensor as T
+        import warnings
+        warnings.warn("MultiHingeCost currently only supports theano")
         """Assumes the targetLayer output be a integer vector, starting from 0"""
         assert target.ndim == 1, ("targetLayer need to output a vector but got %d dimensions" % target.ndim)
         # false-true, 0
@@ -77,5 +83,5 @@ class SquaredMultiHingeCost(Cost):
 #         one_hot = T.cast(T.extra_ops.to_one_hot(target, nb_class), 'float32')
 #         one_hot = one_hot*2 - 1
 #         cost = T.mean(T.sqr(T.maximum(0.,1.-one_hot*predict)))
-        cost = T.mean(T.sqr(T.maximum(0.,1.-target*predict)))
+        cost = LW.mean(LW.square(LW.maximum(0.,1.-target*predict)))
         return cost

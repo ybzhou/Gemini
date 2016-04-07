@@ -1,6 +1,7 @@
-import theano
-
-import theano.tensor as T
+# import theano
+# 
+# import theano.tensor as T
+import libwrapper as LW
 
 def setupDefaultLayerOptions(pnames, layerSpecs):
     # setup default parameter options
@@ -58,46 +59,46 @@ def setupDefaultLayerOptions(pnames, layerSpecs):
     
     return tune, reg, constraint, lr, mu
 
-def corrupt(x, theano_rng, noise_type, noise_level):
+def corrupt(x, rng, noise_type, noise_level):
     if noise_level > 0:
         
         if noise_type == 'saltpepper':
-                mask = theano_rng.binomial(size=x.shape, n=1, p=1-noise_level,
-                                                         dtype=theano.config.floatX)
-                noise = theano_rng.binomial(size=x.shape, n=1, p=0.5,
-                                                 dtype=theano.config.floatX)
-                return mask*x + T.eq(mask,0)*noise
+                mask = rng.binomial(size=x.shape, n=1, p=1-noise_level,
+                                                         dtype=LW.FLOAT_TYPE)
+                noise = rng.binomial(size=x.shape, n=1, p=0.5,
+                                                 dtype=LW.FLOAT_TYPE)
+                return mask*x + LW.eq(mask,0)*noise
         elif noise_type == 'normal':
-            return theano_rng.normal(size=x.shape, avg=0, std=noise_level, 
-                                          dtype=theano.config.floatX) + x
+            return rng.normal(size=x.shape, avg=0, std=noise_level, 
+                                          dtype=LW.FLOAT_TYPE) + x
         elif noise_type == 'prod_normal':
-            return theano_rng.normal(size=x.shape, avg=1, std=noise_level, 
-                                          dtype=theano.config.floatX)*x
+            return rng.normal(size=x.shape, avg=1, std=noise_level, 
+                                          dtype=LW.FLOAT_TYPE)*x
         elif noise_type == 'mask':
-            return theano_rng.binomial(size=x.shape, n=1, p=1 - noise_level,
-                                                dtype=theano.config.floatX) * x
+            return rng.binomial(size=x.shape, n=1, p=1 - noise_level,
+                                                dtype=LW.FLOAT_TYPE) * x
                                                 
         elif noise_type == 'col_mask':
             assert(x.ndim==4)
-            noise = theano_rng.binomial(size=(x.shape[0], x.shape[2], x.shape[3]), 
-                    n=1, p=1 - noise_level,dtype=theano.config.floatX)
+            noise = rng.binomial(size=(x.shape[0], x.shape[2], x.shape[3]), 
+                    n=1, p=1 - noise_level,dtype=LW.FLOAT_TYPE)
             return noise.dimshuffle(0,'x',1,2) * x
         elif noise_type == 'col_normal':
             assert(x.ndim==4)
-            noise = theano_rng.normal(size=(x.shape[0], x.shape[2], x.shape[3]), 
-                    avg=0, std=noise_level,dtype=theano.config.floatX)
+            noise = rng.normal(size=(x.shape[0], x.shape[2], x.shape[3]), 
+                    avg=0, std=noise_level,dtype=LW.FLOAT_TYPE)
             return noise.dimshuffle(0,'x',1,2) + x
         elif noise_type == 'conv_normal':
-            noise = theano_rng.normal(size=x.shape[:2], avg=0, std=noise_level, 
-                                          dtype=theano.config.floatX)
+            noise = rng.normal(size=x.shape[:2], avg=0, std=noise_level, 
+                                          dtype=LW.FLOAT_TYPE)
             return noise.dimshuffle(0,1,'x','x') + x
         elif noise_type == 'conv_prod_normal':
-            noise = theano_rng.normal(size=x.shape[:2], avg=0, std=noise_level, 
-                                          dtype=theano.config.floatX)
+            noise = rng.normal(size=x.shape[:2], avg=0, std=noise_level, 
+                                          dtype=LW.FLOAT_TYPE)
             return noise.dimshuffle(0,1,'x','x')*x
         elif noise_type == 'conv_mask':
-            noise = theano_rng.binomial(size=x.shape[:2], n=1, p=1 - noise_level,
-                                                dtype=theano.config.floatX)
+            noise = rng.binomial(size=x.shape[:2], n=1, p=1 - noise_level,
+                                                dtype=LW.FLOAT_TYPE)
             return noise.dimshuffle(0,1,'x','x') * x
         else:
             raise('unkown noise type')
