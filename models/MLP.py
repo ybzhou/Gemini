@@ -1,8 +1,9 @@
-import theano
+# import theano
 import layers
 import numpy
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 from utils.model.model_utils import obtain_network, validate_network
 from models.supervised_model import SupervisedModel
@@ -37,13 +38,13 @@ class MLP(SupervisedModel):
         
         assert hasattr(self, 'label_dims'), 'Need to specify label input for MLP'
         
-        self.x = T.matrix('x')
+        self.x = LW.symbolic_variable(name='x', ndims=2)
         if self.label_dims == 2:
-            self.y = T.matrix('y')
+            self.y = LW.symbolic_variable(name='y', ndims=2) #T.matrix('y')
         elif self.label_dims == 1:
-            self.y = T.vector('y')
+            self.y = LW.symbolic_variable(name='y', ndims=1)#T.vector('y')
         elif self.label_dims == 4:
-            self.y = T.tensor4('y')
+            self.y = LW.symbolic_variable(name='y', ndims=4)#T.tensor4('y')
         else:
             raise 'Currently only support scalar, vector or tensor-4 labels'
 
@@ -76,12 +77,12 @@ class MLP(SupervisedModel):
         self.final_output = self.layer_outputs[self.network_structure[-1]['name']]
         errors = self.get_errors()
         
-        start_index = T.iscalar('start_index')
-        end_index = T.iscalar('end_index')
+        start_index = LW.symbolic_variable(name='start_index', ndims=0, dtype='int32')#T.iscalar('start_index')
+        end_index = LW.symbolic_variable(name='end_index', ndims=0, dtype='int32')#T.iscalar('end_index')
         
         train_given = {}
         if self.uint8_data:
-            given_train_x = T.cast(self.shared_train[start_index:end_index], dtype='float32')
+            given_train_x = LW.cast(self.shared_train[start_index:end_index], dtype='float32')
         else:
             given_train_x = self.shared_train[start_index:end_index]
             
@@ -92,7 +93,7 @@ class MLP(SupervisedModel):
         train_given[self.x] = given_train_x
         train_given[self.y] = self.shared_train_labels[start_index:end_index]
         
-        self.train_model = theano.function( inputs=[start_index,end_index], 
+        self.train_model = LW.function( inputs=[start_index,end_index], 
                                             outputs=show_cost, updates = updates,
                                             givens = train_given
                                            )
@@ -101,7 +102,7 @@ class MLP(SupervisedModel):
         if hasattr(self, 'shared_valid'):
             valid_given = {}
             if self.uint8_data:
-                given_valid_x = T.cast(self.shared_valid[start_index:end_index], dtype='float32')
+                given_valid_x = LW.cast(self.shared_valid[start_index:end_index], dtype='float32')
             else:
                 given_valid_x = self.shared_valid[start_index:end_index]
                 
@@ -113,7 +114,7 @@ class MLP(SupervisedModel):
                 
             valid_given[self.y] = self.shared_valid_labels[start_index:end_index]
             
-            self.validate_model = theano.function( inputs=[start_index, end_index], 
+            self.validate_model = LW.function( inputs=[start_index, end_index], 
                                                    outputs=errors,
                                                     givens = valid_given
                                                   )
@@ -202,7 +203,7 @@ class MLP(SupervisedModel):
         
         final_output = layer_outputs[feature_layer_name]
 
-        self.__predict = theano.function([self.x], final_output)
+        self.__predict = LW.function([self.x], final_output)
         
         
         nbatches = int(ceil(float(ndata)/self.batch_size))
@@ -249,16 +250,18 @@ class MLP(SupervisedModel):
         final_output = layer_outputs[feature_layer_name]
         
         self.shared_train, _, _, _ = data_provider.get_train_labeled_data_and_idx(0)
-        start_index, end_index = T.iscalars('s_i', 'e_i')
+        start_index = LW.symbolic_variable(name='s_i', dtype='int32', ndims=0)
+        end_index = LW.symbolic_variable(name='e_i', dtype='int32', ndims=0)
+#         start_index, end_index = T.iscalars('s_i', 'e_i')
         xgiven = self.shared_train[start_index:end_index]
         if self.shared_train.dtype=='uint8':
-            xgiven = T.cast(xgiven, dtype='float32')
+            xgiven = LW.cast(xgiven, dtype='float32')
         
         if train_mean is not None and batch_mean_subtraction:
-            tm = theano.shared(numpy.asarray(train_mean, dtype='float32'))
+            tm = LW.data_variable(value=numpy.asarray(train_mean, dtype='float32'))
             xgiven -= tm
             
-        self.__predict = theano.function([start_index, end_index], 
+        self.__predict = LW.function([start_index, end_index], 
                                          final_output,
                                          givens={self.x:xgiven})
         

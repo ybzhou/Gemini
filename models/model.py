@@ -3,7 +3,8 @@ import abc
 import copy
 import numpy
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 import layers
 
 from utils.model.model_utils import raiseNotDefined
@@ -54,7 +55,7 @@ class Model:
         for l in self.layers:
             layer_param_names = l.params.getAllParameterNames()
             for pn in layer_param_names:
-                if (not isinstance(l.params.getParameter(pn), T.TensorVariable)
+                if (isinstance(l.params.getParameter(pn), LW.data_variable)
                     and not numpy.any(numpy.isnan(l.params.getParameterValue(pn)))):
                     self.best_param_values[l.layerName][pn] = copy.deepcopy(l.params.getParameterValue(pn))
             

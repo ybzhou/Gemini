@@ -1,11 +1,12 @@
 import numpy
-import theano
+# import theano
 import copy
 import time
 import os
 import abc
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 from model import Model
 from utils.model.model_utils import raiseNotDefined
@@ -65,7 +66,7 @@ class SupervisedModel(Model):
                'shared_train should only have type uint8 or float32')
         self.uint8_data = (self.shared_train.dtype=='uint8')
         if train_mean is not None:
-            self.train_mean = theano.shared(numpy.asarray(train_mean, dtype='float32'))
+            self.train_mean = LW.data_variable(numpy.asarray(train_mean, dtype='float32'))
         else:
             self.train_mean = None
             
@@ -84,7 +85,7 @@ class SupervisedModel(Model):
             self.best_param_values[l.layerName] = {}
             layer_param_names = l.params.getAllParameterNames()
             for pn in layer_param_names:
-                if not isinstance(l.params.getParameter(pn), T.TensorVariable):
+                if isinstance(l.params.getParameter(pn), LW.data_variable_type): #T.TensorVariable
                     self.best_param_values[l.layerName][pn] = copy.deepcopy(l.params.getParameterValue(pn))
 
         n_train_batches = data_provider.get_number_of_train_batches()

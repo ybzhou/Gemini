@@ -48,7 +48,7 @@ def symbolic_variable(name=None, dtype=FLOAT_TYPE, shape=None, ndims=None):
         ndims = len(shape)
     
     broadcast_dim = (False, )*ndims
-    return T.TensorType(dtype=dtype, broadcasttable=broadcast_dim)(name)
+    return T.TensorType(dtype=dtype, broadcastable=broadcast_dim)(name)
 
 # ------------------------------------------------------------------------------
 # Attributes
@@ -141,6 +141,12 @@ def zeros_like(x):
 
 def ones_line(x):
     return T.ones_like(x)
+
+def ones(shape, dtype=None):
+    return T.ones(shape=shape, dtype=dtype)
+
+def zeros(shape, dtype=None):
+    return T.zeros(shape, dtype=None)
 
 def identity_like(x):
     return T.identity_like(x)
@@ -437,7 +443,7 @@ class Function(object):
                                         givens=givens,
                                         **kwargs)
 
-    def __call__(self, inputs):
+    def __call__(self, *inputs):
         assert type(inputs) in {list, tuple}
         return self.function(*inputs)
 
