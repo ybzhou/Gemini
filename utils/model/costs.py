@@ -39,7 +39,7 @@ class SumOfSquaredCost(Cost):
     def getCost(self, target, predict):
         naxis = predict.ndim
         sum_axis = numpy.arange(1, naxis)
-        return LW.mean(LW.sum(TLW.square(target-predict), axis=tuple(sum_axis)))
+        return LW.mean(LW.sum(LW.square(target-predict), axis=tuple(sum_axis)))
     
 class MultiHingeCost(Cost):
     

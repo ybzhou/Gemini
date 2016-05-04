@@ -52,9 +52,10 @@ class BinaryCodeMatchingError(Error):
 class BinaryCodeClassificationError(Error):
     """classification error based on minimum hamming distance when the target is random binary vector"""
     def getError(self, target, predict, code):
-        import numpy
-        match = LW.dot(predict, code.T) - LW.dot(predict, 1-code.T)
+        match = ( LW.dot(predict, LW.transpose(code)) 
+                  - LW.dot(predict, 1-LW.transpose(code)))
         pred = LW.argmax(match, axis=1)
-        truth = LW.argmax(LW.dot(target, code.T) - LW.dot(target, 1-code.T), axis=1)
+        truth = LW.argmax(LW.dot(target, LW.transpose(code)) 
+                          - LW.dot(target, 1-LW.transpose(code)), axis=1)
         return LW.mean(LW.neq(pred, truth))
     

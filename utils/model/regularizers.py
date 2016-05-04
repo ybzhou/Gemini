@@ -1,5 +1,4 @@
 import abc
-# import theano.tensor as T
 import libwrapper as LW
 
 class Regularizer:
@@ -8,19 +7,19 @@ class Regularizer:
         self.coef = coef
     
     @abc.abstractmethod
-    def getRegularization(self, param):
+    def get_regularization(self, param):
         raise('Unimplemented Error')
     
-    def getRegularizationCoef(self):
+    def get_regularization_coef(self):
         return self.coef
     
-    def setRegularizationCoef(self, coef):
+    def set_regularization_coef(self, coef):
         self.coef = coef
     
 class L2Regularizer(Regularizer):
-    def getRegularization(self, param):
+    def get_regularization(self, param):
         return self.coef*LW.sum(LW.square(param))
     
 class L1Regularizer(Regularizer):
-    def getRegularization(self, param):
+    def get_regularization(self, param):
         return self.coef*LW.sum(LW.abs(param))
