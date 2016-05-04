@@ -15,6 +15,7 @@ __all__ = ["DeConvLayer"]
 class DeConvLayer(Layer):
     """Convolutional layer"""
     def __init__(self):
+        warnings.warn("DeConvLayer currently only supports theano")
         super(DeConvLayer, self).__init__()
         self.layerType = 'deconv'
     

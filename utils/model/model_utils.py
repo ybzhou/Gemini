@@ -7,8 +7,7 @@ import sys
 import PIL.Image
 import theano
 
-import theano.tensor as T
-
+# import theano.tensor as T
 from activations import Activation
 
 def raiseNotDefined():

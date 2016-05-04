@@ -1,11 +1,13 @@
 import abc
-import theano
+# import theano
 
 import numpy
-import theano.tensor as T
+# import theano.tensor as T
 
 from collections import OrderedDict
-from theano.ifelse import ifelse
+# from theano.ifelse import ifelse
+
+import libwrapper as LW
 
 class Scheduler(object):
     __metaclass__ = abc.ABCMeta
@@ -26,12 +28,12 @@ class AnnealScheduler(Scheduler):
         self.min_rate = numpy.cast['float32'](min_rate)
         
     def get_updates(self, rate):
-        iters = theano.shared(numpy.cast['int32'](1))
-        self.rate = theano.shared(numpy.cast['float32'](rate))
-        updated_lr = T.maximum(self.min_rate, self.rate * self.anneal_coef)
+        iters = LW.data_variable(numpy.cast['int32'](1), dtype='int32')
+        self.rate = LW.data_variable(numpy.cast['float32'](rate))
+        updated_lr = LW.maximum(self.min_rate, self.rate * self.anneal_coef)
         updates = OrderedDict()
         updates[iters] =  (iters+numpy.cast['int32'](1))%self.update_freq
-        updates[self.rate] = ifelse(T.gt(iters%self.update_freq, 0), self.rate, updated_lr)
+        updates[self.rate] = LW.ifelse(LW.gt(iters%self.update_freq, 0), self.rate, updated_lr)
         
         return updates
     
@@ -43,10 +45,10 @@ class ExponentialDecayScheduler(Scheduler):
         self.update_freq = numpy.cast['int32'](update_freq)
         
     def get_updates(self, rate):
-        iters = theano.shared(numpy.cast['int32'](1))
-        self.rate = theano.shared(numpy.cast['float32'](rate))
+        iters = LW.data_variable(numpy.cast['int32'](1))
+        self.rate = LW.data_variable(numpy.cast['float32'](rate))
         updated_lr = self.rate * self.decay
         updates = OrderedDict()
         updates[iters] =  (iters+numpy.cast['int32'](1))%self.update_freq
-        updates[self.rate] = ifelse(T.gt(iters%self.update_freq, 0), self.rate, updated_lr)
+        updates[self.rate] = LW.ifelse(LW.gt(iters%self.update_freq, 0), self.rate, updated_lr)
         return updates

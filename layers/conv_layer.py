@@ -1,8 +1,6 @@
 import warnings
-import theano
 import numpy
-
-import theano.sandbox.cuda.dnn as cuDNN
+import libwrapper as LW
 
 from layer import Layer
 from utils.model.layer_utils import setupDefaultLayerOptions, corrupt
@@ -85,12 +83,12 @@ class ConvLayer(Layer):
             if W_values is None:
                 W_values = self.wInit.init(numpy.prod(self.filterShape[1:]), self.filterShape[0], 
                                            numpy.prod(self.filterShape[1:]), numpy.prod(self.filterShape)/self.filterShape[1])
-            W_expr = theano.shared(name='W', value=W_values.reshape(self.filterShape), borrow=True)
+            W_expr = LW.data_variable(name='W', value=W_values.reshape(self.filterShape))
         
         if b_values is None:
             b_values = self.bInit*numpy.ones((self.filterShape[0],), dtype='float32')
             
-        b_expr = theano.shared(name='b', value=b_values, borrow=True)
+        b_expr = LW.data_variable(name='b', value=b_values)
         
         if self.ignore_bias:
             if 'tune' in layerSpecs:
@@ -119,13 +117,11 @@ class ConvLayer(Layer):
             W = self.params.getParameter('W')
         else:
             W = self.params.getParameter('W').dimshuffle(1,0,2,3)
-            
-        conv_out = cuDNN.dnn_conv(
-                    img=x, 
-                    kerns=W, 
-                    border_mode=(self.nPad, self.nPad),
-                    subsample=(self.strideSize, self.strideSize),
-                    algo=self.algo)
+        
+        conv_out = LW.conv2d(x=x,
+                             filter=W,
+                             border_mode=(self.nPad, self.nPad),
+                             stride=(self.strideSize, self.strideSize))
         
         if not self.ignore_bias:
             conv_out +=  self.params.getParameter('b').dimshuffle('x', 0, 'x', 'x')

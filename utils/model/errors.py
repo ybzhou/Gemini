@@ -1,6 +1,7 @@
 import abc
 
-import theano.tensor as T
+# import theano.tensor as T
+import libwrapper as LW
 
 class Error:
     __metaclass__ = abc.ABCMeta
@@ -18,7 +19,7 @@ class BinaryCrossEntropyError(Error):
     def getError(self, target, predict):
         """Target neeed to have the same dimensionality as predict"""
         assert target.ndim == predict.ndim, "the output layer need to output %d dimensions, but got %d dimensions" % (target.ndim, predict.ndim)
-        error = T.mean(T.sum(T.nnet.binary_crossentropy(predict, target), axis=1))
+        error = LW.mean(LW.sum(LW.binary_cross_entropy(predict, target), axis=1))
         return error
     
 class ClassificationErrorScalar(Error):
@@ -26,7 +27,7 @@ class ClassificationErrorScalar(Error):
     def getError(self, target, predict):
         """Assumes the targetLayer output be a integer vector, starting from 0"""
         assert target.ndim == 1, "targetLayer need to output a vector but got %d dimensions" % target.ndim
-        error = T.mean(T.neq(T.argmax(predict, axis=1), target))
+        error = LW.mean(LW.neq(LW.argmax(predict, axis=1), target))
         return error
     
 class ClassificationError1ofK(Error):
@@ -34,26 +35,27 @@ class ClassificationError1ofK(Error):
     def getError(self, target, predict):
         """Assumes the targetLayer output be a integer one of k matrix, starting from 0"""
         assert target.ndim == 2, "targetLayer need to output a matrix but got %d dimensions" % target.ndim
-        error = T.mean(T.neq(T.argmax(predict, axis=1), T.argmax(target, axis=1)))
+        error = LW.mean(LW.neq(LW.argmax(predict, axis=1), LW.argmax(target, axis=1)))
         return error
     
 class SumOfSquaredError(Error):
     """Sum of squared error"""
     def getError(self, target, predict):
-        return T.mean(T.sum(T.sqr(target-predict), axis=1))
+        return LW.mean(LW.sum(LW.square(target-predict), axis=1))
 
 class BinaryCodeMatchingError(Error):
     """classification error based on exact matching when the target is random binary vector"""
     def getError(self, target, predict):
-        pred = T.round(predict)
-        return T.mean(T.neq(T.sum(T.neq(pred, target),axis=1),0))
+        pred = LW.round(predict)
+        return LW.mean(LW.neq(LW.sum(LW.neq(pred, target),axis=1),0))
     
 class BinaryCodeClassificationError(Error):
     """classification error based on minimum hamming distance when the target is random binary vector"""
     def getError(self, target, predict, code):
-        import numpy
-        match = T.dot(predict, code.T) - T.dot(predict, 1-code.T)
-        pred = T.argmax(match, axis=1)
-        truth = T.argmax(T.dot(target, code.T) - T.dot(target, 1-code.T), axis=1)
-        return T.mean(T.neq(pred, truth))
+        match = ( LW.dot(predict, LW.transpose(code)) 
+                  - LW.dot(predict, 1-LW.transpose(code)))
+        pred = LW.argmax(match, axis=1)
+        truth = LW.argmax(LW.dot(target, LW.transpose(code)) 
+                          - LW.dot(target, 1-LW.transpose(code)), axis=1)
+        return LW.mean(LW.neq(pred, truth))
     

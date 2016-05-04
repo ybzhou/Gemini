@@ -3,9 +3,11 @@ from math import ceil
 
 import h5py
 import numpy
-import theano
+# import theano
 import warnings
 from data.data_provider import UnlabeledDataProvider
+
+import libwrapper as LW
 
 __all__ = ['DiskDataProvider', 'UnlabeledDiskDataProvider']
 
@@ -194,18 +196,16 @@ class UnlabeledDiskDataProvider(DiskDataProvider, UnlabeledDataProvider):
         if max_gpu_valid_samples > nvalid_samples:
             max_gpu_valid_samples = nvalid_samples
         
-        self.shared_train_data = theano.shared(numpy.zeros((max_gpu_train_samples, 
+        self.shared_train_data = LW.data_variable(value=numpy.zeros((max_gpu_train_samples, 
                                                             data.shape[1]), 
-                                                           dtype=data.dtype),
-                                                       borrow=True)
+                                                           dtype=data.dtype))
         
         self.shared_valid_data = None
         if not is_test and nvalid_samples > 0:
             
-            self.shared_valid_data =  theano.shared(numpy.zeros((max_gpu_valid_samples, 
+            self.shared_valid_data =  LW.data_variable(value=numpy.zeros((max_gpu_valid_samples, 
                                                                     data.shape[1]), 
-                                                                   dtype=data.dtype),
-                                                            borrow=True)
+                                                                   dtype=data.dtype))
 
         self.max_ram_train_samples = min(max_ram_train_samples, self.ntrain_data)
         self.max_ram_valid_samples = min(max_ram_valid_samples, self.nvalid_data)

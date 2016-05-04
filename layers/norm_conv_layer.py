@@ -1,9 +1,10 @@
 import warnings
-import theano
+# import theano
 import numpy
 
-import theano.tensor as T
-import theano.sandbox.cuda.dnn as cuDNN
+# import theano.tensor as T
+# import theano.sandbox.cuda.dnn as cuDNN
+import libwrapper as LW
 
 from layer import Layer
 from utils.model.layer_utils import setupDefaultLayerOptions, corrupt
@@ -94,7 +95,7 @@ class NormConvLayer(Layer):
         if gamma_values is None:
             gamma_values = numpy.ones((self.filterShape[0],), dtype='float32')
             
-        gamma_expr = theano.shared(gamma_values, name='gamma')
+        gamma_expr = LW.data_variable(value=gamma_values, name='gamma')
         
         if W_expr is not None:
             W_expr = W_expr
@@ -102,12 +103,12 @@ class NormConvLayer(Layer):
             if W_values is None:
                 W_values = self.wInit.init(numpy.prod(self.filterShape[1:]), self.filterShape[0], 
                                            numpy.prod(self.filterShape[1:]), numpy.prod(self.filterShape)/self.filterShape[1])
-            W_expr = theano.shared(name='W', value=W_values.reshape(self.filterShape), borrow=True)
+            W_expr = LW.data_variable(name='W', value=W_values.reshape(self.filterShape))
         
         if b_values is None:
             b_values = self.bInit*numpy.ones((self.filterShape[0],), dtype='float32')
             
-        b_expr = theano.shared(name='b', value=b_values, borrow=True)
+        b_expr = LW.data_variable(name='b', value=b_values)
         
 #         beta_expr = theano.shared(name='beta', value=numpy.ones(self.filterShape[0], dtype='float32'))
         
@@ -131,17 +132,15 @@ class NormConvLayer(Layer):
         b = self.params.getParameter('b')
         gamma = self.params.getParameter('gamma')
         # convolve input feature maps with filters
-        conv_out = cuDNN.dnn_conv(
-                    img=x, 
-                    kerns=W, 
-                    border_mode=(self.nPad, self.nPad),
-                    subsample=(self.strideSize, self.strideSize),
-                    workmem=None)
-        
-        W_non_center_std = T.sqrt(T.sum(T.sqr(W), axis=(1,2,3)))*numpy.float32(1.21)
-        conv_out /=  W_non_center_std.dimshuffle('x', 0, 'x', 'x')
-        conv_out *= gamma.dimshuffle('x', 0, 'x', 'x')
-        conv_out +=  b.dimshuffle('x', 0, 'x', 'x')
+        conv_out = LW.conv2d(x=x,
+                             filter=W,
+                             border_mode=(self.nPad, self.nPad),
+                             stride=(self.strideSize, self.strideSize))
+
+        W_non_center_std = LW.sqrt(LW.sum(LW.square(W), axis=(1,2,3)))*numpy.float32(1.21)
+        conv_out /=  LW.dimshuffle(W_non_center_std, 'x', 0, 'x', 'x')
+        conv_out *= LW.dimshuffle(gamma, 'x', 0, 'x', 'x')
+        conv_out +=  LW.dimshuffle(b, 'x', 0, 'x', 'x')
         
         if self.post_act_normalize and self.actFunc:
             conv_out = (self.actFunc(conv_out) - _sub_const)/numpy.float32(numpy.sqrt(0.5-0.5/numpy.pi))

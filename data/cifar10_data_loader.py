@@ -27,8 +27,8 @@ class CIFAR10DataLoader(DataLoader):
         
         self.train_x = numpy.asarray(self.train_x, dtype=load_dtype)
         self.test_x = numpy.asarray(self.test_x, dtype=load_dtype)
-        self.train_y = numpy.asarray(self.train_y, dtype='int32')
-        self.test_y = numpy.asarray(self.test_y, dtype='int32')
+        self.train_y = numpy.asarray(self.train_y, dtype='float32')
+        self.test_y = numpy.asarray(self.test_y, dtype='float32')
         
         if subtract_mean or divide_std or contrast_norm or norm_range is not None:
             if load_dtype != 'float32':

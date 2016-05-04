@@ -2,9 +2,7 @@ import cPickle
 import numpy
 import os
 
-import theano.tensor as T
-import theano.sandbox.rng_mrg as MRG_RNG
-
+import libwrapper as LW
 import utils.model.optimizers as optimizers
 import utils.model.schedulers as schedulers
 import utils.model.weight_init as weight_init
@@ -20,7 +18,7 @@ from data import CIFAR10DataLoader
 seed = 1234
 numpy.random.seed(seed)
 numpy_rng = numpy.random.RandomState(seed)
-theano_rng = MRG_RNG.MRG_RandomStreams(numpy_rng.randint(2 ** 30))
+rng = LW.RNG(numpy_rng.randint(2**30))
 training_epochs = 20
 batch_size = 100
 max_gpu_samples = 50000
@@ -54,7 +52,7 @@ mlp_ns = [
      'lr_scheduler':schedulers.AnnealScheduler(update_freq=update_freq, anneal_coef=L_decay, min_rate=1e-7)},
           
     {'name':'pool2', 'layer_input':'conv2', 'layer_type':'pool', 
-     'pool_size':3, 'pool_stride':2, 'pool_mode':'average', 'act_func':None},
+     'pool_size':3, 'pool_stride':2, 'pool_mode':'avg', 'act_func':None},
           
     {'name':'conv3', 'layer_input':'pool2', 'layer_type':'conv', 'channels':64, 
      'strid_size':1, 'pad':2, 'filter_size':5,
@@ -65,7 +63,7 @@ mlp_ns = [
      'lr_scheduler':schedulers.AnnealScheduler(update_freq=update_freq, anneal_coef=L_decay, min_rate=1e-7)},
           
     {'name':'pool3', 'layer_input':'conv3', 'layer_type':'pool', 
-     'pool_size':3, 'pool_stride':2, 'pool_mode':'average', 'act_func':None},
+     'pool_size':3, 'pool_stride':2, 'pool_mode':'avg', 'act_func':None},
           
     {'name':'full1', 'layer_input':'pool3', 'layer_type':'full', 'hiddens':64, 
      'w_init':weight_init.GaussianWeightInit(numpy_rng, 0.1), 'b_init':0, 'act_func':Rectifier(),

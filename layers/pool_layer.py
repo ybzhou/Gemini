@@ -1,6 +1,7 @@
 import numpy
 
-import theano.sandbox.cuda.dnn as cuDNN
+# import theano.sandbox.cuda.dnn as cuDNN
+import libwrapper as LW
 
 from layer import Layer
 
@@ -32,13 +33,11 @@ class PoolLayer(Layer):
                            int((nInputCols - self.poolSize+2*pad)//self.poolStride + 1))
     
     def fprop(self, x):
-        pooled_out = cuDNN.dnn_pool(
-            img=x,
-            ws=(self.poolSize, self.poolSize),
-            stride=(self.poolStride,self.poolStride),
-            pad = (self.pad, self.pad),
-            mode=self.mode
-            )
+        pooled_out = LW.pool2d(x=x, 
+                               pool_size=(self.poolSize, self.poolSize), 
+                               stride=(self.poolStride, self.poolStride), 
+                               padding=(self.pad, self.pad), 
+                               mode=self.mode)
         pooled_out = pooled_out if self.actFunc is None else self.actFunc(pooled_out)
         return pooled_out
     
